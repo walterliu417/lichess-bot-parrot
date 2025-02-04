@@ -51,9 +51,7 @@ class Parrot(ExampleEngine):
     def search(self, board: chess.Board, time_limit: chess.engine.Limit, *args) -> PlayResult:
         # Hybrid MCTS + alpha-beta search.
         if time_limit.time:
-            self.time_for_this_move = time_limit.time
-            self.time_control = time_limit.time
-            print(f"Time control for this game: {self.time_control} minutes.")
+            self.time_for_this_move = time_limit.time / 300
         else:
             if board.turn == chess.WHITE:
                 self.time_remaining = time_limit.white_clock
@@ -63,7 +61,7 @@ class Parrot(ExampleEngine):
             # Simple time management
             if board.fullmove_number < 5:
                 # Opening - save time
-                self.time_for_this_move = self.time_control * 60 / 100
+                self.time_for_this_move = self.time_control / 300
             else:
                 if board.fullmove_number < 40:
                     expected_moves_left = 60 - board.fullmove_number
@@ -72,15 +70,18 @@ class Parrot(ExampleEngine):
                 else:
                     expected_moves_left = 20
                 self.time_for_this_move = (self.time_remaining / expected_moves_left) * 0.925 # Safety factor for network issues, etc
-
+        print(f"Time remaining: {self.time_remaining} seconds.")
         print(f"Starting search for {self.time_for_this_move} seconds.")
         search_start = time.time()
         
         root_node = Node(board)
+        count = 0
         while time.time() - search_start < self.time_for_this_move:
             # Do something to evaluate the position...
-            print(root_node.evaluate(self.model))
+            root_node.evaluate(self.model)
+            count += 1
             pass
+        print(f"Evaluated {count} times for a nps of {count / self.time_for_this_move}")
         
         try:
             return PlayResult(best_move, None)
