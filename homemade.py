@@ -12,7 +12,7 @@ import logging
 
 
 # Use this logger variable to print messages to the console or log files.
-# logger.info("message") will always print "message" to the console or log file.
+# print("message") will always print "message" to the console or log file.
 # logger.debug("message") will only print "message" if verbose logging is enabled.
 logger = logging.getLogger(__name__)
 

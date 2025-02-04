@@ -187,7 +187,10 @@ def run_bot(raw_config: CONFIG_DICT_TYPE, logging_level: int, opponent_path: Opt
     """
     config.insert_default_values(raw_config)
     CONFIG = config.Configuration(raw_config)
-    logger.info(lichess_bot.intro())
+    
+    
+    
+    (lichess_bot.intro())
     manager = Manager()
     board_queue: Queue[chess.Board] = manager.Queue()
     clock_queue: Queue[tuple[datetime.timedelta, datetime.timedelta, datetime.timedelta]] = manager.Queue()
@@ -198,7 +201,7 @@ def run_bot(raw_config: CONFIG_DICT_TYPE, logging_level: int, opponent_path: Opt
     username = user_profile["username"]
     if user_profile.get("title") != "BOT":
         return False
-    logger.info(f"Welcome {username}!")
+    print(f"Welcome {username}!")
     lichess_bot.disable_restart()
 
     results: Queue[bool] = manager.Queue()
@@ -229,14 +232,14 @@ def test_sf() -> None:
     CONFIG["engine"]["name"] = f"sf{file_extension}"
     CONFIG["engine"]["uci_options"]["Threads"] = 1
     CONFIG["pgn_directory"] = "TEMP/sf_game_record"
-    logger.info("Downloading Stockfish")
+    print("Downloading Stockfish")
     try:
         download_sf()
     except Exception:
         logger.exception("Could not download the Stockfish chess engine")
         pytest.skip("Could not download the Stockfish chess engine")
     win = run_bot(CONFIG, logging_level)
-    logger.info("Finished Testing SF")
+    print("Finished Testing SF")
     assert win
     assert os.path.isfile(os.path.join(CONFIG["pgn_directory"],
                                        "bo vs b - zzzzzzzz.pgn"))
@@ -257,14 +260,14 @@ def test_lc0() -> None:
     CONFIG["engine"]["uci_options"].pop("Hash", None)
     CONFIG["engine"]["uci_options"].pop("Move Overhead", None)
     CONFIG["pgn_directory"] = "TEMP/lc0_game_record"
-    logger.info("Downloading LC0")
+    print("Downloading LC0")
     try:
         download_lc0()
     except Exception:
         logger.exception("Could not download the LC0 chess engine")
         pytest.skip("Could not download the LC0 chess engine")
     win = run_bot(CONFIG, logging_level)
-    logger.info("Finished Testing LC0")
+    print("Finished Testing LC0")
     assert win
     assert os.path.isfile(os.path.join(CONFIG["pgn_directory"],
                                        "bo vs b - zzzzzzzz.pgn"))
@@ -284,14 +287,14 @@ def test_arasan() -> None:
     CONFIG["engine"]["name"] = f"arasan{file_extension}"
     CONFIG["engine"]["ponder"] = False
     CONFIG["pgn_directory"] = "TEMP/arasan_game_record"
-    logger.info("Downloading Arasan")
+    print("Downloading Arasan")
     try:
         download_arasan()
     except Exception:
         logger.exception("Could not download the Arasan chess engine")
         pytest.skip("Could not download the Arasan chess engine")
     win = run_bot(CONFIG, logging_level)
-    logger.info("Finished Testing Arasan")
+    print("Finished Testing Arasan")
     assert win
     assert os.path.isfile(os.path.join(CONFIG["pgn_directory"],
                                        "bo vs b - zzzzzzzz.pgn"))
@@ -313,7 +316,7 @@ def test_homemade() -> None:
     CONFIG["engine"]["protocol"] = "homemade"
     CONFIG["pgn_directory"] = "TEMP/homemade_game_record"
     win = run_bot(CONFIG, logging_level)
-    logger.info("Finished Testing Homemade")
+    print("Finished Testing Homemade")
     assert win
     assert os.path.isfile(os.path.join(CONFIG["pgn_directory"],
                                        "bo vs b - zzzzzzzz.pgn"))
@@ -346,7 +349,7 @@ def test_buggy_engine() -> None:
     CONFIG["pgn_directory"] = "TEMP/bug_game_record"
 
     win = run_bot(CONFIG, logging_level, engine_path(CONFIG))
-    logger.info("Finished Testing buggy engine")
+    print("Finished Testing buggy engine")
     assert win
     assert os.path.isfile(os.path.join(CONFIG["pgn_directory"],
                                        "bo vs b - zzzzzzzz.pgn"))

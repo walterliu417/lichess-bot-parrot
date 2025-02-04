@@ -54,7 +54,11 @@ class Conversation:
         :param line: Information about the message.
         """
         self.messages.append(line)
-        logger.info(f"*** {self.game.url()} [{line.room}] {line.username}: {line.text}")
+        
+        
+        
+        
+        (f"*** {self.game.url()} [{line.room}] {line.username}: {line.text}")
         if line.text[0] == self.command_prefix:
             self.command(line, line.text[1:].lower())
 
@@ -96,7 +100,7 @@ class Conversation:
         :param line: Information about the original message that we reply to.
         :param reply: The reply to send.
         """
-        logger.info(f"*** {self.game.url()} [{line.room}] {self.game.username}: {reply}")
+        print(f"*** {self.game.url()} [{line.room}] {self.game.username}: {reply}")
         self.li.chat(self.game.id, line.room, reply)
 
     def send_message(self, room: str, message: str) -> None:

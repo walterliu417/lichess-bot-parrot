@@ -275,9 +275,14 @@ class Lichess:
         try:
             self.api_post("takeback", game_id, "yes" if accept else "no")
             if accept:
-                logger.info("Opponent took back previous move.")
+                
+                
+                
+                
+                
+                ("Opponent took back previous move.")
             else:
-                logger.info("Refused opponent's take back request.")
+                print("Refused opponent's take back request.")
             return accept
         except Exception:
             return False

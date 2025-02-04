@@ -79,7 +79,11 @@ class Matchmaking:
         min_wait_time_passed = self.last_challenge_created_delay.time_since_reset() > self.min_wait_time
         if challenge_expired:
             self.li.cancel(self.challenge_id)
-            logger.info(f"Challenge id {self.challenge_id} cancelled.")
+            
+            
+            
+            
+            (f"Challenge id {self.challenge_id} cancelled.")
             self.discard_challenge(self.challenge_id)
             self.show_earliest_challenge_time()
         return bool(matchmaking_enabled and (time_has_passed or challenge_expired) and min_wait_time_passed)
@@ -170,7 +174,7 @@ class Matchmaking:
     def choose_opponent(self) -> tuple[Optional[str], int, int, int, str, str]:
         """Choose an opponent."""
         override_choice = random.choice(self.matchmaking_cfg.overrides.keys() + [None])
-        logger.info(f"Using the {override_choice or 'default'} matchmaking configuration.")
+        print(f"Using the {override_choice or 'default'} matchmaking configuration.")
         override = {} if override_choice is None else self.matchmaking_cfg.overrides.lookup(override_choice)
         match_config = self.matchmaking_cfg | override
 
@@ -198,7 +202,7 @@ class Matchmaking:
         if rating_diff is not None and bot_rating > 0:
             min_rating = bot_rating - rating_diff
             max_rating = bot_rating + rating_diff
-        logger.info(f"Seeking {game_type} game with opponent rating in [{min_rating}, {max_rating}] ...")
+        print(f"Seeking {game_type} game with opponent rating in [{min_rating}, {max_rating}] ...")
         allow_tos_violation = match_config.opponent_allow_tos_violation
 
         def is_suitable_opponent(bot: UserProfileType) -> bool:
@@ -257,12 +261,12 @@ class Matchmaking:
                 or not self.should_create_challenge()):
             return
 
-        logger.info("Challenging a random bot")
+        print("Challenging a random bot")
         self.update_user_profile()
         bot_username, base_time, increment, days, variant, mode = self.choose_opponent()
-        logger.info(f"Will challenge {bot_username} for a {variant} game.")
+        print(f"Will challenge {bot_username} for a {variant} game.")
         challenge_id = self.create_challenge(bot_username, base_time, increment, days, variant, mode) if bot_username else ""
-        logger.info(f"Challenge id is {challenge_id if challenge_id else 'None'}.")
+        print(f"Challenge id is {challenge_id if challenge_id else 'None'}.")
         self.challenge_id = challenge_id
 
     def discard_challenge(self, challenge_id: str) -> None:
@@ -287,7 +291,7 @@ class Matchmaking:
             time_left = max(postgame_timeout, time_to_next_challenge)
             earliest_challenge_time = datetime.datetime.now() + time_left
             challenges = "challenge" + ("" if len(self.daily_challenges) == 1 else "s")
-            logger.info(f"Next challenge will be created after {earliest_challenge_time.strftime('%X')} "
+            print(f"Next challenge will be created after {earliest_challenge_time.strftime('%X')} "
                         f"({len(self.daily_challenges)} {challenges} in last 24 hours)")
 
     def add_to_block_list(self, username: str) -> None:
@@ -336,7 +340,7 @@ class Matchmaking:
         challenge = model.Challenge(event["challenge"], self.user_profile)
         opponent = challenge.challenge_target
         reason = event["challenge"]["declineReason"]
-        logger.info(f"{opponent} declined {challenge}: {reason}")
+        print(f"{opponent} declined {challenge}: {reason}")
         self.discard_challenge(challenge.id)
         if not challenge.from_self or self.challenge_filter == FilterType.NONE:
             return
@@ -358,7 +362,7 @@ class Matchmaking:
             logger.warning(f"Unknown decline reason received: {reason_key}")
         game_problem = decline_details.get(reason_key, "") if self.challenge_filter == FilterType.FINE else ""
         self.add_challenge_filter(opponent.name, game_problem)
-        logger.info(f"Will not challenge {opponent} to another {game_problem}".strip() + " game.")
+        print(f"Will not challenge {opponent} to another {game_problem}".strip() + " game.")
 
         self.show_earliest_challenge_time()
 

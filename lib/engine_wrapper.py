@@ -329,7 +329,12 @@ class EngineWrapper:
     def print_stats(self) -> None:
         """Print the engine stats."""
         for line in self.get_stats():
-            logger.info(line)
+            
+            
+            
+            
+            
+            (line)
 
     def readable_score(self, relative_score: chess.engine.PovScore) -> str:
         """Convert the score to a more human-readable format."""
@@ -684,7 +689,7 @@ def single_move_time(board: chess.Board, game: model.Game, search_time: datetime
     overhead = pre_move_time + move_overhead
     clock_time = max(msec(1), msec(game.state[wbtime(board)]) - overhead)
     search_time = min(search_time, clock_time)
-    logger.info(f"Searching for time {sec_str(search_time)} seconds for game {game.id}")
+    print(f"Searching for time {sec_str(search_time)} seconds for game {game.id}")
     return chess.engine.Limit(time=to_seconds(search_time), clock_id="correspondence")
 
 
@@ -697,7 +702,7 @@ def first_move_time(game: model.Game) -> chess.engine.Limit:
     """
     # Need to hardcode first movetime since Lichess has 30 sec limit.
     search_time = seconds(10)
-    logger.info(f"Searching for time {sec_str(search_time)} seconds for game {game.id}")
+    print(f"Searching for time {sec_str(search_time)} seconds for game {game.id}")
     return chess.engine.Limit(time=to_seconds(search_time), clock_id="first move")
 
 
@@ -719,7 +724,7 @@ def game_clock_time(board: chess.Board,
     times = {"wtime": msec(game.state["wtime"]), "btime": msec(game.state["btime"])}
     side = wbtime(board)
     times[side] = max(msec(1), times[side] - overhead)
-    logger.info(f"Searching for wtime {msec_str(times['wtime'])} btime {msec_str(times['btime'])} for game {game.id}")
+    print(f"Searching for wtime {msec_str(times['wtime'])} btime {msec_str(times['btime'])} for game {game.id}")
     return chess.engine.Limit(white_clock=to_seconds(times["wtime"]),
                               black_clock=to_seconds(times["btime"]),
                               white_inc=to_seconds(msec(game.state["winc"])),
@@ -765,7 +770,7 @@ def get_book_move(board: chess.Board, game: model.Game,
                 move = None
 
         if move is not None:
-            logger.info(f"Got move {move} from book {book} for game {game.id}")
+            print(f"Got move {move} from book {book} for game {game.id}")
             return chess.engine.PlayResult(move, None, {"string": "lichess-bot-source:Opening Book"})
 
     return no_book_move
@@ -819,7 +824,7 @@ def get_online_move(li: lichess.Lichess, board: chess.Board, game: model.Game, o
     out_of_online_opening_book_moves[game.id] += 1
     used_opening_books = chessdb_cfg.enabled or lichess_cloud_cfg.enabled or opening_explorer_cfg.enabled
     if out_of_online_opening_book_moves[game.id] == max_out_of_book_moves and used_opening_books:
-        logger.info(f"Will stop using online opening books for game {game.id}.")
+        print(f"Will stop using online opening books for game {game.id}.")
     return chess.engine.PlayResult(None, None)
 
 
@@ -852,10 +857,10 @@ def get_chessdb_move(li: lichess.Lichess, board: chess.Board, game: model.Game,
                     comment["depth"] = data["depth"]
                     comment["pv"] = list(map(chess.Move.from_uci, data["pv"]))
                     comment["string"] = "lichess-bot-source:ChessDB"
-                    logger.info(f"Got move {move} from chessdb.cn (depth: {depth}, score: {score}) for game {game.id}")
+                    print(f"Got move {move} from chessdb.cn (depth: {depth}, score: {score}) for game {game.id}")
             else:
                 move = data["move"]
-                logger.info(f"Got move {move} from chessdb.cn for game {game.id}")
+                print(f"Got move {move} from chessdb.cn for game {game.id}")
 
     return move, comment
 
@@ -906,7 +911,7 @@ def get_lichess_cloud_move(li: lichess.Lichess, board: chess.Board, game: model.
                 comment["nodes"] = data["knodes"] * 1000
                 comment["pv"] = list(map(chess.Move.from_uci, pv["moves"].split()))
                 comment["string"] = "lichess-bot-source:Lichess Cloud Analysis"
-                logger.info(f"Got move {move} from lichess cloud analysis (depth: {depth}, score: {score}, knodes: {knodes})"
+                print(f"Got move {move} from lichess cloud analysis (depth: {depth}, score: {score}, knodes: {knodes})"
                             f" for game {game.id}")
 
     return move, comment
@@ -957,7 +962,7 @@ def get_opening_explorer_move(li: lichess.Lichess, board: chess.Board, game: mod
                               games_played if opening_explorer_cfg.sort == "winrate" else winrate, possible_move["uci"]))
         moves.sort(reverse=True)
         move = moves[0][2]
-        logger.info(f"Got move {move} from lichess opening explorer ({opening_explorer_cfg.sort}: {moves[0][0]})"
+        print(f"Got move {move} from lichess opening explorer ({opening_explorer_cfg.sort}: {moves[0][0]})"
                     f" for game {game.id}")
 
     return move, comment
@@ -1053,7 +1058,7 @@ def get_lichess_egtb_move(li: lichess.Lichess, game: model.Game, board: chess.Bo
             dtm = data["moves"][0]["dtm"]
             if dtm:
                 dtm *= -1
-            logger.info(f"Got move {move} from tablebase.lichess.ovh (wdl: {wdl}, dtz: {dtz}, dtm: {dtm}) for game {game.id}")
+            print(f"Got move {move} from tablebase.lichess.ovh (wdl: {wdl}, dtz: {dtz}, dtm: {dtm}) for game {game.id}")
         else:  # quality == "suggest":
             best_wdl = name_to_wld[data["moves"][0]["category"]] * -1
 
@@ -1064,7 +1069,7 @@ def get_lichess_egtb_move(li: lichess.Lichess, game: model.Game, board: chess.Bo
             if len(possible_moves) > 1:
                 move_list = [move["uci"] for move in possible_moves]
                 wdl = best_wdl
-                logger.info(f"Suggesting moves from tablebase.lichess.ovh (wdl: {wdl}) for game {game.id}")
+                print(f"Suggesting moves from tablebase.lichess.ovh (wdl: {wdl}) for game {game.id}")
                 return move_list, wdl, {"string": "lichess-bot-source:Lichess EGTB"}
             else:
                 best_move = possible_moves[0]
@@ -1074,7 +1079,7 @@ def get_lichess_egtb_move(li: lichess.Lichess, game: model.Game, board: chess.Bo
                 dtm = best_move["dtm"]
                 if dtm:
                     dtm *= -1
-                logger.info(f"Got move {move} from tablebase.lichess.ovh (wdl: {wdl}, dtz: {dtz}, dtm: {dtm})"
+                print(f"Got move {move} from tablebase.lichess.ovh (wdl: {wdl}, dtz: {dtz}, dtm: {dtm})"
                             f" for game {game.id}")
 
         return move, wdl, {"string": "lichess-bot-source:Lichess EGTB"}
@@ -1109,7 +1114,7 @@ def get_chessdb_egtb_move(li: lichess.Lichess, game: model.Game, board: chess.Bo
             move = data["pv"][0]
             wdl = score_to_wdl(score)
             dtz = score_to_dtz(score)
-            logger.info(f"Got move {move} from chessdb.cn (wdl: {wdl}, dtz: {dtz}) for game {game.id}")
+            print(f"Got move {move} from chessdb.cn (wdl: {wdl}, dtz: {dtz}) for game {game.id}")
         else:  # quality == "suggest"
             best_wdl = score_to_wdl(data["moves"][0]["score"])
 
@@ -1120,7 +1125,7 @@ def get_chessdb_egtb_move(li: lichess.Lichess, game: model.Game, board: chess.Bo
             if len(possible_moves) > 1:
                 wdl = score_to_wdl(possible_moves[0]["score"])
                 move_list = [move["uci"] for move in possible_moves]
-                logger.info(f"Suggesting moves from from chessdb.cn (wdl: {wdl}) for game {game.id}")
+                print(f"Suggesting moves from from chessdb.cn (wdl: {wdl}) for game {game.id}")
                 return move_list, wdl, {"string": "lichess-bot-source:ChessDB EGTB"}
             else:
                 best_move = possible_moves[0]
@@ -1128,7 +1133,7 @@ def get_chessdb_egtb_move(li: lichess.Lichess, game: model.Game, board: chess.Bo
                 move = best_move["uci"]
                 wdl = score_to_wdl(score)
                 dtz = score_to_dtz(score)
-                logger.info(f"Got move {move} from chessdb.cn (wdl: {wdl}, dtz: {dtz}) for game {game.id}")
+                print(f"Got move {move} from chessdb.cn (wdl: {wdl}, dtz: {dtz}) for game {game.id}")
 
         return move, wdl, {"string": "lichess-bot-source:ChessDB EGTB"}
     return None, -3, {}
@@ -1160,13 +1165,13 @@ def get_syzygy(board: chess.Board, game: model.Game,
             good_moves = [(move, dtz) for move, dtz in moves.items() if dtz_to_wdl(dtz) == best_wdl]
             if move_quality == "suggest" and len(good_moves) > 1:
                 move = [chess_move for chess_move, dtz in good_moves]
-                logger.info(f"Suggesting moves from syzygy (wdl: {best_wdl}) for game {game.id}")
+                print(f"Suggesting moves from syzygy (wdl: {best_wdl}) for game {game.id}")
                 return move, best_wdl
             # There can be multiple moves with the same dtz.
             best_dtz = min(good_moves, key=itemgetter(1))[1]
             best_moves = [chess_move for chess_move, dtz in good_moves if dtz == best_dtz]
             move = random.choice(best_moves)
-            logger.info(f"Got move {move.uci()} from syzygy (wdl: {best_wdl}, dtz: {best_dtz}) for game {game.id}")
+            print(f"Got move {move.uci()} from syzygy (wdl: {best_wdl}, dtz: {best_dtz}) for game {game.id}")
             return move, best_wdl
         except KeyError:
             # Attempt to only get the WDL score. It returns moves of quality="suggest", even if quality is set to "best".
@@ -1178,10 +1183,10 @@ def get_syzygy(board: chess.Board, game: model.Game,
                              if move_quality == "best" else "")
                 if len(good_chess_moves) > 1:
                     move = good_chess_moves
-                    logger.info(f"Suggesting moves from syzygy (wdl: {best_wdl}) for game {game.id}")
+                    print(f"Suggesting moves from syzygy (wdl: {best_wdl}) for game {game.id}")
                 else:
                     move = good_chess_moves[0]
-                    logger.info(f"Got move {move.uci()} from syzygy (wdl: {best_wdl}) for game {game.id}")
+                    print(f"Got move {move.uci()} from syzygy (wdl: {best_wdl}) for game {game.id}")
                 return move, best_wdl
             except KeyError:
                 return None, -3
@@ -1247,16 +1252,16 @@ def get_gaviota(board: chess.Board, game: model.Game,
                 best_moves = good_enough_gaviota_moves(good_moves, best_dtm, min_dtm_to_consider_as_wdl_1)
                 if len(best_moves) > 1:
                     move = [chess_move for chess_move, dtm in best_moves]
-                    logger.info(f"Suggesting moves from gaviota (pseudo wdl: {pseudo_wdl}) for game {game.id}")
+                    print(f"Suggesting moves from gaviota (pseudo wdl: {pseudo_wdl}) for game {game.id}")
                 else:
                     move, dtm = best_moves[0]
-                    logger.info(f"Got move {move.uci()} from gaviota (pseudo wdl: {pseudo_wdl}, dtm: {dtm})"
+                    print(f"Got move {move.uci()} from gaviota (pseudo wdl: {pseudo_wdl}, dtm: {dtm})"
                                 f" for game {game.id}")
             else:
                 # There can be multiple moves with the same dtm.
                 best_moves = [(move, dtm) for move, dtm in good_moves if dtm == best_dtm]
                 move, dtm = random.choice(best_moves)
-                logger.info(f"Got move {move.uci()} from gaviota (pseudo wdl: {pseudo_wdl}, dtm: {dtm}) for game {game.id}")
+                print(f"Got move {move.uci()} from gaviota (pseudo wdl: {pseudo_wdl}, dtm: {dtm}) for game {game.id}")
             return move, pseudo_wdl
         except KeyError:
             return None, -3
