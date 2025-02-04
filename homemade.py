@@ -8,10 +8,11 @@ from lib.engine_wrapper import MinimalEngine
 from lib.lichess_types import MOVE, HOMEMADE_ARGS_TYPE
 import time
 
+from helperfuncs import *
 from tree import *
+from nn_creator import *
 
 # Logging is useless in Google Colab, replaced with print.
-
 
 
 try:
@@ -24,8 +25,6 @@ except:
 class ExampleEngine(MinimalEngine):
     """An example engine that all homemade engines inherit."""
 
-
-# Bot names and ideas from tom7's excellent eloWorld video
 
 class RandomMove(ExampleEngine):
     """Get a random move."""
@@ -40,12 +39,21 @@ class Parrot(ExampleEngine):
         super().__init__(*args, **kwargs)
         self.time_remaining = 0
         self.time_control = 0
+        
+        model_name = "new_parrot"
+        self.model = SimpleModel(model_name)
+        state = torch.load(f"/content/drive/MyDrive/parrot/best_{model_name}.pickle", weights_only=True, map_location=device)
+        self.model.load_state_dict(state)
+        self.model.to(device)
+        print(self.model)
+        print("Current best model loaded successfully!")
 
     def search(self, board: chess.Board, time_limit: chess.engine.Limit, *args) -> PlayResult:
         # Hybrid MCTS + alpha-beta search.
         if time_limit.time:
             self.time_for_this_move = time_limit.time
             self.time_control = time_limit.time
+            print(f"Time control for this game: {self.time_control} minutes.")
         else:
             if board.turn == chess.WHITE:
                 self.time_remaining = time_limit.white_clock
@@ -55,7 +63,7 @@ class Parrot(ExampleEngine):
             # Simple time management
             if board.fullmove_number < 5:
                 # Opening - save time
-                self.time_for_this_move = self.time_control / 100
+                self.time_for_this_move = self.time_control * 60 / 100
             else:
                 if board.fullmove_number < 40:
                     expected_moves_left = 60 - board.fullmove_number
@@ -65,10 +73,13 @@ class Parrot(ExampleEngine):
                     expected_moves_left = 20
                 self.time_for_this_move = (self.time_remaining / expected_moves_left) * 0.925 # Safety factor for network issues, etc
 
+        print(f"Starting search for {self.time_for_this_move} seconds.")
         search_start = time.time()
         
+        root_node = Node(board)
         while time.time() - search_start < self.time_for_this_move:
             # Do something to evaluate the position...
+            print(root_node.evaluate(self.model))
             pass
         
         try:

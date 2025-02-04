@@ -1,3 +1,5 @@
+from helperfuncs import *
+
 class Node:
 
     def __init__(self, board):
@@ -9,8 +11,8 @@ class Node:
         self.all_other_children = []
         
 
-    def evaluate(self, board: chess.Board):
-        pos = torch.FloatTensor(board_to_boardmap(board)).unsqueeze(0)
-        feat = torch.FloatTensor(fen_to_feature_wboard_list(board.fen())).unsqueeze(0)
-        val = float(model.forward(pos, feat))
+    def evaluate(self, net: torch.nn.Module):
+        pos = torch.FloatTensor(board_to_boardmap(self.board), device=device).unsqueeze(0)
+        feat = torch.FloatTensor(fen_to_feature_wboard_list(self.board.fen()), device=device).unsqueeze(0)
+        val = float(net.forward(pos, feat))
         return val
