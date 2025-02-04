@@ -1,21 +1,25 @@
 """
-Some example classes for people who want to create a homemade bot.
-
-With these classes, bot makers will not have to implement the UCI or XBoard interfaces themselves.
+This file is designed to interact with the Colab notebook parrot_implementation.ipynb.
 """
 import chess
 from chess.engine import PlayResult, Limit
 import random
 from lib.engine_wrapper import MinimalEngine
 from lib.lichess_types import MOVE, HOMEMADE_ARGS_TYPE
-import logging
+import time
+
+from tree import *
+
+# Logging is useless in Google Colab, replaced with print.
 
 
-# Use this logger variable to print messages to the console or log files.
-# print("message") will always print "message" to the console or log file.
-# logger.debug("message") will only print "message" if verbose logging is enabled.
-logger = logging.getLogger(__name__)
 
+try:
+    TABLEBASE = chess.syzygy.open_tablebase("/content/drive/MyDrive/parrot/tablebase_5pc")
+except:
+    print("Could not find 5-piece tablebase.")
+    TABLEBASE = None
+    
 
 class ExampleEngine(MinimalEngine):
     """An example engine that all homemade engines inherit."""
@@ -30,67 +34,45 @@ class RandomMove(ExampleEngine):
         """Choose a random move."""
         return PlayResult(random.choice(list(board.legal_moves)), None)
 
+class Parrot(ExampleEngine):
 
-class Alphabetical(ExampleEngine):
-    """Get the first move when sorted by san representation."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.time_remaining = 0
+        self.time_control = 0
 
-    def search(self, board: chess.Board, *args: HOMEMADE_ARGS_TYPE) -> PlayResult:  # noqa: ARG002
-        """Choose the first move alphabetically."""
-        moves = list(board.legal_moves)
-        moves.sort(key=board.san)
-        return PlayResult(moves[0], None)
-
-
-class FirstMove(ExampleEngine):
-    """Get the first move when sorted by uci representation."""
-
-    def search(self, board: chess.Board, *args: HOMEMADE_ARGS_TYPE) -> PlayResult:  # noqa: ARG002
-        """Choose the first move alphabetically in uci representation."""
-        moves = list(board.legal_moves)
-        moves.sort(key=str)
-        return PlayResult(moves[0], None)
-
-
-class ComboEngine(ExampleEngine):
-    """
-    Get a move using multiple different methods.
-
-    This engine demonstrates how one can use `time_limit`, `draw_offered`, and `root_moves`.
-    """
-
-    def search(self,
-               board: chess.Board,
-               time_limit: Limit,
-               ponder: bool,  # noqa: ARG002
-               draw_offered: bool,
-               root_moves: MOVE) -> PlayResult:
-        """
-        Choose a move using multiple different methods.
-
-        :param board: The current position.
-        :param time_limit: Conditions for how long the engine can search (e.g. we have 10 seconds and search up to depth 10).
-        :param ponder: Whether the engine can ponder after playing a move.
-        :param draw_offered: Whether the bot was offered a draw.
-        :param root_moves: If it is a list, the engine should only play a move that is in `root_moves`.
-        :return: The move to play.
-        """
-        if isinstance(time_limit.time, int):
-            my_time = time_limit.time
-            my_inc = 0
-        elif board.turn == chess.WHITE:
-            my_time = time_limit.white_clock if isinstance(time_limit.white_clock, int) else 0
-            my_inc = time_limit.white_inc if isinstance(time_limit.white_inc, int) else 0
+    def search(self, board: chess.Board, time_limit: chess.engine.Limit, *args) -> PlayResult:
+        # Hybrid MCTS + alpha-beta search.
+        if time_limit.time:
+            self.time_for_this_move = time_limit.time
+            self.time_control = time_limit.time
         else:
-            my_time = time_limit.black_clock if isinstance(time_limit.black_clock, int) else 0
-            my_inc = time_limit.black_inc if isinstance(time_limit.black_inc, int) else 0
+            if board.turn == chess.WHITE:
+                self.time_remaining = time_limit.white_clock
+            elif board.turn == chess.BLACK:
+                self.time_remaining = time_limit.black_clock
 
-        possible_moves = root_moves if isinstance(root_moves, list) else list(board.legal_moves)
+            # Simple time management
+            if board.fullmove_number < 5:
+                # Opening - save time
+                self.time_for_this_move = self.time_control / 100
+            else:
+                if board.fullmove_number < 40:
+                    expected_moves_left = 60 - board.fullmove_number
+                elif board.fullmove_number < 80:
+                    expected_moves_left = 100 - board.fullmove_number
+                else:
+                    expected_moves_left = 20
+                self.time_for_this_move = (self.time_remaining / expected_moves_left) * 0.925 # Safety factor for network issues, etc
 
-        if my_time / 60 + my_inc > 10:
-            # Choose a random move.
-            move = random.choice(possible_moves)
-        else:
-            # Choose the first move alphabetically in uci representation.
-            possible_moves.sort(key=str)
-            move = possible_moves[0]
-        return PlayResult(move, None, draw_offered=draw_offered)
+        search_start = time.time()
+        
+        while time.time() - search_start < self.time_for_this_move:
+            # Do something to evaluate the position...
+            pass
+        
+        try:
+            return PlayResult(best_move, None)
+        except:
+            # Fail-safe: return random move :(
+            return PlayResult(random.choice(list(board.legal_moves)), None)

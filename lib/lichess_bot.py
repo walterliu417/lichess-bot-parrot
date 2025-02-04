@@ -1178,7 +1178,7 @@ def start_lichess_bot() -> None:
 
     logging_level = logging.DEBUG if args.v else logging.INFO
     logging_configurer(logging_level, args.logfile, args.disable_auto_logging)
-    print(intro(), extra={"highlighter": None})
+    print(intro())
 
     CONFIG = load_config(args.config or "./config.yml")
     if not args.disable_auto_logging:
