@@ -3,6 +3,7 @@ import chess
 import re
 import torch
 import torch.nn as nn
+import time
 
 # Reconfigure device
 try:

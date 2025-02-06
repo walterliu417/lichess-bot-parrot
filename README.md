@@ -1,3 +1,8 @@
+This is Walter Liu's implementation of lichess-bot, using my own chess engine. It uses a value-based neural network which was trained on 60+ million Stockfish evaluations from the Lichess database, and a simple alpha-beta search with iterative deepening. Performance will be updated soon!
+
+For more information on how the network was trained and deployed, check out the Colab Notebooks folder.
+
+Original README:
 <div align="center">
 
   ![lichess-bot](https://github.com/lichess-bot-devs/lichess-bot-images/blob/main/lichess-bot-icon-400.png)

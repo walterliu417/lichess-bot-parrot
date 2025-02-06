@@ -45,13 +45,15 @@ class Parrot(ExampleEngine):
         state = torch.load(f"/content/drive/MyDrive/parrot/best_{model_name}.pickle", weights_only=True, map_location=device)
         self.model.load_state_dict(state)
         self.model.to(device)
+        self.model.eval()
         print(self.model)
         print("Current best model loaded successfully!")
 
     def search(self, board: chess.Board, time_limit: chess.engine.Limit, *args) -> PlayResult:
         # Hybrid MCTS + alpha-beta search.
         if time_limit.time:
-            self.time_for_this_move = time_limit.time / 300
+            self.time_for_this_move = time_limit.time / 5
+            self.time_remaining = time_limit.time * 60
         else:
             if board.turn == chess.WHITE:
                 self.time_remaining = time_limit.white_clock
@@ -61,7 +63,7 @@ class Parrot(ExampleEngine):
             # Simple time management
             if board.fullmove_number < 5:
                 # Opening - save time
-                self.time_for_this_move = self.time_control / 300
+                self.time_for_this_move = self.time_remaining / 300
             else:
                 if board.fullmove_number < 40:
                     expected_moves_left = 60 - board.fullmove_number
