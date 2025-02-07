@@ -77,16 +77,12 @@ class Parrot(ExampleEngine):
         search_start = time.time()
         
         root_node = Node(board)
-        count = 0
-        while time.time() - search_start < self.time_for_this_move:
-            # Do something to evaluate the position...
-            root_node.evaluate(self.model)
-            count += 1
-            pass
-        print(f"Evaluated {count} times for a nps of {count / self.time_for_this_move}")
+        selected_child = root_node.mcts(search_start, self.time_for_this_move)
+        print(f"Visited {root_node.visits} times for a nps of {root_node.visits / self.time_for_this_move}")
+        print(f"Evaluation: {selected_child.value}")
         
         try:
-            return PlayResult(best_move, None)
+            return PlayResult(selected_child.move, None)
         except:
             # Fail-safe: return random move :(
             return PlayResult(random.choice(list(board.legal_moves)), None)

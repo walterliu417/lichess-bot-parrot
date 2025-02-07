@@ -29,47 +29,75 @@ def squareint_to_square(sqint):
 def int_to_bin(anint, pad=4):
     return [int(_) for _ in "0" * (pad - len(bin(anint)[2:])) + bin(anint)[2:]]
 
-def board_to_boardlist(board):
-    boards = [[[0 for _ in range(8)] for _ in range(8)] for _ in range(12)]
-    for square, piece in board.piece_map().items():
-        idx = squareint_to_square(square)
-        boards[chr_to_num[piece.symbol()]][idx[0]][idx[1]] = 1
-    return boards
-
-def board_to_boardmap(board):
+def fast_board_to_boardmap(board):
+    # Slower than piece_map() when there are less pieces on the board, but faster (~2x) in most cases.
     boards = [[0.5 for _ in range(8)] for _ in range(8)]
-    for square, piece in board.piece_map().items():
+    for square in board.pieces(chess.PAWN, chess.WHITE):
         idx = squareint_to_square(square)
-        boards[idx[0]][idx[1]] = round((chr_to_num[piece.symbol()]) / 12, 4)
+        boards[idx[0]][idx[1]] = round((chr_to_num["P"]) / 12, 4)
+    for square in board.pieces(chess.PAWN, chess.BLACK):
+        idx = squareint_to_square(square)
+        boards[idx[0]][idx[1]] = round((chr_to_num["p"]) / 12, 4)
+    for square in board.pieces(chess.KNIGHT, chess.WHITE):
+        idx = squareint_to_square(square)
+        boards[idx[0]][idx[1]] = round((chr_to_num["N"]) / 12, 4)
+    for square in board.pieces(chess.KNIGHT, chess.BLACK):
+        idx = squareint_to_square(square)
+        boards[idx[0]][idx[1]] = round((chr_to_num["n"]) / 12, 4)
+    for square in board.pieces(chess.BISHOP, chess.WHITE):
+        idx = squareint_to_square(square)
+        boards[idx[0]][idx[1]] = round((chr_to_num["B"]) / 12, 4)
+    for square in board.pieces(chess.BISHOP, chess.BLACK):
+        idx = squareint_to_square(square)
+        boards[idx[0]][idx[1]] = round((chr_to_num["b"]) / 12, 4)
+    for square in board.pieces(chess.ROOK, chess.WHITE):
+        idx = squareint_to_square(square)
+        boards[idx[0]][idx[1]] = round((chr_to_num["R"]) / 12, 4)
+    for square in board.pieces(chess.ROOK, chess.BLACK):
+        idx = squareint_to_square(square)
+        boards[idx[0]][idx[1]] = round((chr_to_num["r"]) / 12, 4)
+    for square in board.pieces(chess.QUEEN, chess.WHITE):
+        idx = squareint_to_square(square)
+        boards[idx[0]][idx[1]] = round((chr_to_num["Q"]) / 12, 4)
+    for square in board.pieces(chess.QUEEN, chess.BLACK):
+        idx = squareint_to_square(square)
+        boards[idx[0]][idx[1]] = round((chr_to_num["q"]) / 12, 4)
+    for square in board.pieces(chess.KING, chess.WHITE):
+        idx = squareint_to_square(square)
+        boards[idx[0]][idx[1]] = round((chr_to_num["K"]) / 12, 4)
+    for square in board.pieces(chess.KING, chess.BLACK):
+        idx = squareint_to_square(square)
+        boards[idx[0]][idx[1]] = round((chr_to_num["k"]) / 12, 4)
     return [boards]
 
-
-def fen_to_feature_wboard_list(fen_str):
-    board = re.split(" |/", fen_str)
-    r = 0
-    whosemove = []
-    enpassqnum = board[10]
+def fast_board_to_feature(board):
+    whosemove = [int(board.turn)]
+    enpassqnum = board.ep_square
     can_enpassant = [0]
-    castling_rights = [0, 0, 0, 0]
-    if enpassqnum != "-":
-        enpassqnum = int_to_bin(square_to_int(enpassqnum), pad=6)
+    if (enpassqnum is not None) and (board.has_legal_en_passant()):
+        enpassqnum = (enpassqnum % 8) * 8 + (enpassqnum // 8)
+        enpassqnum = int_to_bin(enpassqnum, pad=6)
         can_enpassant = [1]
     else:
         enpassqnum = int_to_bin(0, pad=6)
-    for entry in board:
-        if entry == "w":
-            whosemove = [1]
-        elif entry == "b":
-            whosemove = [0]
-        elif r == 9:
-            if entry.find("K") != -1:
-                castling_rights[0] = 1
-            if entry.find("Q") != -1:
-                castling_rights[1] = 1
-            if entry.find("k") != -1:
-                castling_rights[2] = 1
-            if entry.find("q") != -1:
-                castling_rights[3] = 1
-        r += 1
+    castling_rights = [int(board.has_kingside_castling_rights(chess.WHITE)), int(board.has_queenside_castling_rights(chess.WHITE)), int(board.has_kingside_castling_rights(chess.BLACK)), int(board.has_queenside_castling_rights(chess.BLACK))]
     return whosemove + can_enpassant + enpassqnum + castling_rights
 
+def lt5(board):
+    # Are there less then 5 pieces on the board? If so, go to tablebase probing.
+    p = 0
+    p += len(board.pieces(chess.PAWN, chess.WHITE))
+    if p > 3: return False
+    p += len(board.pieces(chess.PAWN, chess.BLACK))
+    if p > 3: return False
+    p += len(board.pieces(chess.KNIGHT, chess.WHITE))
+    p += len(board.pieces(chess.KNIGHT, chess.BLACK))
+    p += len(board.pieces(chess.BISHOP, chess.WHITE))
+    p += len(board.pieces(chess.BISHOP, chess.BLACK))
+    p += len(board.pieces(chess.ROOK, chess.WHITE))
+    if p > 3: return False
+    p += len(board.pieces(chess.ROOK, chess.BLACK))
+    if p > 3: return False
+    p += len(board.pieces(chess.QUEEN, chess.WHITE))
+    p += len(board.pieces(chess.QUEEN, chess.BLACK))
+    return p <= 3

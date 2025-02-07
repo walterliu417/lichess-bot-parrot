@@ -1,4 +1,5 @@
 from helperfuncs import *
+import numpy as np
 
 try:
     TABLEBASE = chess.syzygy.open_tablebase("/content/drive/MyDrive/parrot/tablebase_5pc")
@@ -7,85 +8,114 @@ except:
     print("Could not find tablebase")
     TABLEBASE = None
 
+TIMES_UP = -999
+
+class Node:
+    pass
+
 class Node:
 
-    def __init__(self, board: chess.Board, net: nn.Module, parent_depth, table: dict):
+    def __init__(self, board: chess.Board, move: chess.Move, net: nn.Module, parent: Node | None, depth=0):
         self.board = board
-        self.parent_depth = parent_depth    
+        self.move = move
         self.value = 0.5
-        self.transposition_children = []
-        self.capture_children = []
-        self.check_children = []
-        self.all_other_children = []
+        self.parent = parent
+        self.visits = 0
+        self.depth = depth
 
         self.net = net
-        self.table = table
+        self.children = []
 
-    def evaluate_nn(self):
-        pos = torch.tensor(board_to_boardmap(self.board), device=device, dtype=torch.float).unsqueeze(0)
-        feat = torch.tensor(fen_to_feature_wboard_list(self.board.fen()), device=device, dtype=torch.float).unsqueeze(0)
-        val = float(self.net.forward(pos, feat))
-        return val
+    def ucb(self, c=1.4):
+        try:
+            if self.board.turn:
+                return (self.value / (self.visits + 1)) + c * (np.log(self.parent.visits) / (self.visits + 1))
+            elif not self.board.turn:
+                return (self.value / (self.visits + 1)) - c * (np.log(self.parent.visits) / (self.visits + 1))
+        except:
+            return self.value / (self.visits + 1)
     
-    def evaluate_position(self, depth):
-        winner = False
+    def evaluate_position(self):
+        if TABLEBASE and lt5(self.board):
+            result = TABLEBASE.probe_wdl(self.board)
+            if result == 2:
+                return self.board.turn
+            elif result == -2:
+                return not self.board.turn
+            elif result in [-1, 0, 1]:
+                return 0.5
         outcome = self.board.result(claim_draw=True)
         if outcome != "*":
             if outcome == "1-0":
-                winner = chess.WHITE + max((self.parent_depth - depth) / 10, 0)
+                return chess.WHITE + max((10 - self.depth) / 10, 0)
             elif outcome == "0-1":
-                winner = chess.BLACK - max((self.parent_depth - depth) / 10, 0)
+                return chess.BLACK - max((10 - self.depth) / 10, 0)
             elif outcome == "1/2-1/2":
-                winner = 0.5
-        elif len(self.board.piece_map()) <= 5 and TABLEBASE:
-            result = TABLEBASE.probe_wdl(self.board)
-            if result == 2:
-                winner = self.board.turn
-            elif result == -2:
-                winner = not self.board.turn
-            elif result in [-1, 0, 1]:
-                winner = 0.5
-        return winner
-
+                return 0.5
+        return None
     
-    def alpha_beta(self, alpha, beta, depth, start_time, time_for_this_move):
+    def generate_children(self):
+        all_positions = []
+        all_feats = []
 
-        if time.time() - start_time > time_for_this_move:
-            return None # Times up
+        evaled = []
+        not_evaled = []
+
+        for move in self.board.legal_moves:
+            newboard = self.board.copy().push(move)
+            newnode = Node(newboard, move, self.net, self, self.depth + 1)
+            score = newnode.evaluate_position()
+            if score is not None:
+                newnode.value = score
+                evaled.append(newnode)
+            else:
+                all_positions.append(fast_board_to_boardmap(newboard))
+                all_feats.append(fast_board_to_feature(newboard))
+                not_evaled.append(newnode)
+
+        pos = torch.tensor(all_positions, device=device, dtype=torch.float).resize(len(not_evaled), 1, 8, 8)
+        feat = torch.tensor(all_feats, device=device, dtype=torch.float).resize(len(not_evaled), 12)
+        result = self.net.forward(pos, feat)
+        for i in range(len(not_evaled)):
+            not_evaled[i].value = float(result[i])
+            evaled.append(not_evaled[i])
         
-        winner = self.evaluate_position(depth)
-        if winner is not False:
-            return winner
-        
-        if depth == 0:
-            # Leaf node.
-            return self.evaluate_nn()
-        
-        if (not self.transposition_children) and (not self.capture_children) and (not self.check_children) and (not self.all_other_children):
-            moves = list(self.board.legal_moves)
-            for move in moves:
-                if self.board.is_capture(move):
-                    self.capture_children.append(move)
-                elif self.board.is_check(move):
-                    self.check_children.append(move)
-                else:
-                    self.all_other_children.append(move)
+        self.children = evaled
 
-        if self.board.turn:
-            # White player - maximising.
-            best_value = -10000
-            for node in self.transposition_children:
-                value = node.alpha_beta(alpha, beta, depth - 1, start_time, time_for_this_move)
-                best_value = max(best_value, value)
-                alpha = max(alpha, best_value)
-                if beta <= alpha:
-                    # Beta cutoff
-                    break
 
-            for move in self.capture_children:
-                new_board = self.board.copy(stack=False)
-                new_board.push(move)
-                new_node = Node(new_board, self.net, self.parent_depth, self.table)
-                value = node.
+    def mcts(self, start_time, time_for_this_move, c=1.4):
+        while time.time() - start_time < time_for_this_move:
 
+            # 1. Traverse tree
+            target_node = self
+            while target_node.children is not []:
+                target_node.visits += 1
+                if target_node.board.turn:
+                    target_node.children = sorted(target_node.children, key=lambda child: child.ucb(c), reverse=True)
+                elif not target_node.board.turn:
+                    target_node.children = sorted(target_node.children, key=lambda child: child.ucb(c))
+                target_node = target_node.children[0]
             
+            # 2. Expansion
+            target_node.generate_children()
+
+            # 3. Backpropagation
+            if target_node.board.turn:
+                best_value = max(target_node.children, key=lambda child: child.value).value
+            elif target_node.board.turn:
+                best_value = min(target_node.children, key=lambda child: child.value).value
+
+            while target_node.parent is not None:
+                target_node = target_node.parent
+                target_node.value = best_value
+
+        # 4. Select move
+        if target_node.board.turn:
+            selected_child = max(self.children, key=lambda child: (0.8) * (child.visits / self.visits) + 0.2 * child.value)
+        elif target_node.board.turn:
+            selected_child = min(self.children, key=lambda child: -(0.8) * (child.visits / self.visits) + 0.2 * child.value)
+
+        return selected_child
+
+
+
