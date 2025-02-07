@@ -9,6 +9,9 @@ except:
     TABLEBASE = None
 
 TIMES_UP = -999
+EXACT = 0
+LOWERBOUND = 1
+UPPERBOUND = 2
 
 class Node:
     pass
@@ -18,13 +21,14 @@ class Node:
     def __init__(self, board: chess.Board, move: chess.Move | None, net: nn.Module, parent: Node | None, depth=0):
         self.board = board
         self.move = move
-        self.value = 0.5
+        self.value = None
         self.parent = parent
         self.visits = 0
         self.depth = depth
 
         self.net = net
         self.children = []
+        self.flag = None
 
     def ucb(self, c=1.4):
         try:
@@ -34,6 +38,11 @@ class Node:
                 return (self.value / (self.visits + 1)) - c * (np.log(self.parent.visits) / (self.visits + 1))
         except:
             return self.value / (self.visits + 1)
+        
+    def evaluate_nn(self):
+        pos = torch.tensor(fast_board_to_boardmap(self.board), device=device, dtype=torch.float).reshape(1, 1, 8, 8)
+        feat = torch.tensor(fast_board_to_feature(self.board), device=device, dtype=torch.float).reshape(1, 12)
+        return self.net.forward(pos, feat)
     
     def evaluate_position(self):
         if TABLEBASE and lt5(self.board):
@@ -73,6 +82,9 @@ class Node:
                 all_positions.append(fast_board_to_boardmap(newboard))
                 all_feats.append(fast_board_to_feature(newboard))
                 not_evaled.append(newnode)
+            if self.table: 
+                newnode.flag = EXACT
+                self.table[newboard.fen()] = newnode
 
         pos = torch.tensor(all_positions, device=device, dtype=torch.float).reshape(len(not_evaled), 1, 8, 8)
         feat = torch.tensor(all_feats, device=device, dtype=torch.float).reshape(len(not_evaled), 12)
@@ -120,6 +132,72 @@ class Node:
             selected_child = min(self.children, key=lambda child: -(0.8) * (child.visits / self.visits) + 0.2 * child.value)
 
         return selected_child
+    
+    def negamax(self, depth, alpha, beta, color, start_time, time_for_this_move):
+        if time.time() - start_time > time_for_this_move:
+            return TIMES_UP, None
+        alpha_original = 0
+        
+        if self.value is not None:
+            if self.flag == EXACT:
+                return self.value, self.move
+            elif self.flag == LOWERBOUND:
+                alpha = max(alpha, self.value)
+            elif self.flag == UPPERBOUND:
+                beta = min(beta, self.value)
+            
+            if alpha >= beta:
+                return self.value, self.move
+        
+
+        value = self.evaluate_position()
+        if value is not None:
+            return value * color, self.move
+        if depth == 0:
+            return self.evaluate_nn() * color, self.move
+        
+        if self.children != []:
+            self.children = sorted(self.children, key=lambda child: child.value, reverse=True)
+        elif self.children == []:
+            captures = []
+            checks = []
+            others = []
+            for move in self.board.legal_moves:
+                newboard = self.board.copy()
+                newboard.push(move)
+                newnode = Node(newboard, move, self.net, self, self.depth + 1)
+                if self.board.is_capture(move):
+                    captures.append(newnode)
+                elif self.board.is_check(move):
+                    checks.append(newnode)
+                else:
+                    others.append(newnode)
+            self.children = captures + checks + others
+
+        value = -10000
+        best_move = None
+        for child in self.children:
+            newvalue, newmove = -child.negamax(depth - 1, -beta, -alpha, -color, start_time, time_for_this_move)
+            if newvalue == TIMES_UP:
+                return TIMES_UP, None
+            if newvalue > value:
+                value = newvalue
+                best_move = newmove
+            alpha = max(alpha, value)
+            if alpha >= beta:
+                break
+
+        self.value = value
+        if value <= alpha_original:
+            self.flag = UPPERBOUND
+        elif value >= beta:
+            self.flag = LOWERBOUND
+        else:
+            self.flag = EXACT
+        
+        return value, best_move
+
+
 
 
 

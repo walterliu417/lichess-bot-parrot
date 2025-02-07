@@ -71,12 +71,23 @@ class Parrot(ExampleEngine):
         search_start = time.time()
         
         root_node = Node(board, None, self.model, None)
-        selected_child = root_node.mcts(search_start, self.time_for_this_move)
-        print(f"Visited {root_node.visits} times for a nps of {root_node.visits / self.time_for_this_move}")
-        print(f"Evaluation: {selected_child.value}")
+        depth = 1
+        color = 1 if board.turn else -1
+        best_move = None
+        best_value = None
+        while time.time() - search_start < self.time_for_this_move:
+            value, move = root_node.negamax(depth, -10000, 10000, color, search_start, self.time_for_this_move)
+            if value == TIMES_UP:
+                break
+            depth += 1
+            best_move = move
+            best_value = value
+
+        print(f"Depth reached: {depth}")
+        print(f"Evaluation: {best_value}")
         
         try:
-            return PlayResult(selected_child.move, None)
+            return PlayResult(best_move, None)
         except:
             # Fail-safe: return random move :(
             return PlayResult(random.choice(list(board.legal_moves)), None)
