@@ -157,7 +157,14 @@ class Node:
             return self.evaluate_nn() * color, self.move
         
         if self.children != []:
-            self.children = sorted(self.children, key=lambda child: child.value, reverse=True)
+            evaled, not_evaled = [], []
+            for child in self.children:
+                if child.value is not None:
+                    evaled.append(child)
+                else:
+                    not_evaled.append(child)
+            self.children = evaled + not_evaled
+            
         elif self.children == []:
             captures = []
             checks = []
