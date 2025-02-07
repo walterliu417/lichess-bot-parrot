@@ -76,7 +76,7 @@ class Parrot(ExampleEngine):
         print(f"Starting search for {self.time_for_this_move} seconds.")
         search_start = time.time()
         
-        root_node = Node(board)
+        root_node = Node(board, None, self.model, None)
         selected_child = root_node.mcts(search_start, self.time_for_this_move)
         print(f"Visited {root_node.visits} times for a nps of {root_node.visits / self.time_for_this_move}")
         print(f"Evaluation: {selected_child.value}")

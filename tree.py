@@ -15,7 +15,7 @@ class Node:
 
 class Node:
 
-    def __init__(self, board: chess.Board, move: chess.Move, net: nn.Module, parent: Node | None, depth=0):
+    def __init__(self, board: chess.Board, move: chess.Move | None, net: nn.Module, parent: Node | None, depth=0):
         self.board = board
         self.move = move
         self.value = 0.5
@@ -62,7 +62,8 @@ class Node:
         not_evaled = []
 
         for move in self.board.legal_moves:
-            newboard = self.board.copy().push(move)
+            newboard = self.board.copy()
+            newboard.push(move)
             newnode = Node(newboard, move, self.net, self, self.depth + 1)
             score = newnode.evaluate_position()
             if score is not None:
@@ -73,8 +74,8 @@ class Node:
                 all_feats.append(fast_board_to_feature(newboard))
                 not_evaled.append(newnode)
 
-        pos = torch.tensor(all_positions, device=device, dtype=torch.float).resize(len(not_evaled), 1, 8, 8)
-        feat = torch.tensor(all_feats, device=device, dtype=torch.float).resize(len(not_evaled), 12)
+        pos = torch.tensor(all_positions, device=device, dtype=torch.float).reshape(len(not_evaled), 1, 8, 8)
+        feat = torch.tensor(all_feats, device=device, dtype=torch.float).reshape(len(not_evaled), 12)
         result = self.net.forward(pos, feat)
         for i in range(len(not_evaled)):
             not_evaled[i].value = float(result[i])
@@ -88,7 +89,7 @@ class Node:
 
             # 1. Traverse tree
             target_node = self
-            while target_node.children is not []:
+            while target_node.children != []:
                 target_node.visits += 1
                 if target_node.board.turn:
                     target_node.children = sorted(target_node.children, key=lambda child: child.ucb(c), reverse=True)
@@ -100,10 +101,13 @@ class Node:
             target_node.generate_children()
 
             # 3. Backpropagation
-            if target_node.board.turn:
-                best_value = max(target_node.children, key=lambda child: child.value).value
-            elif target_node.board.turn:
-                best_value = min(target_node.children, key=lambda child: child.value).value
+            if len(target_node.children) == 0:
+                best_value = target_node.value
+            else:
+                if target_node.board.turn:
+                    best_value = max(target_node.children, key=lambda child: child.value).value
+                elif target_node.board.turn:
+                    best_value = min(target_node.children, key=lambda child: child.value).value
 
             while target_node.parent is not None:
                 target_node = target_node.parent
@@ -112,7 +116,7 @@ class Node:
         # 4. Select move
         if target_node.board.turn:
             selected_child = max(self.children, key=lambda child: (0.8) * (child.visits / self.visits) + 0.2 * child.value)
-        elif target_node.board.turn:
+        elif not target_node.board.turn:
             selected_child = min(self.children, key=lambda child: -(0.8) * (child.visits / self.visits) + 0.2 * child.value)
 
         return selected_child
