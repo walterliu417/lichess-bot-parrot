@@ -52,7 +52,6 @@ class Parrot(ExampleEngine):
     def search(self, board: chess.Board, time_limit: chess.engine.Limit, *args) -> PlayResult:
         # Hybrid MCTS + alpha-beta search.
         if time_limit.time:
-            self.time_for_this_move = time_limit.time
             self.time_remaining = time_limit.time * 60
         else:
             if board.turn == chess.WHITE:
@@ -61,11 +60,11 @@ class Parrot(ExampleEngine):
                 self.time_remaining = time_limit.black_clock
 
             # Simple time management
-            if board.fullmove_number < 5:
+            if board.fullmove_number < 40:
                 # Opening - save time
-                self.time_for_this_move = self.time_remaining / 60
+                self.time_for_this_move = self.time_remaining * 0.7 / 20
             else:
-                self.time_for_this_move = (self.time_remaining / 20) * 0.925 # Safety factor for network issues, etc
+                self.time_for_this_move = (self.time_remaining / 15)
         print(f"Time remaining: {self.time_remaining} seconds.")
         print(f"Starting search for {self.time_for_this_move} seconds.")
         search_start = time.time()

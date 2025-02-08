@@ -138,7 +138,7 @@ class Node:
             return TIMES_UP, None
         alpha_original = 0
         
-        if self.value is not None:
+        if (self.value is not None) and depth == 0:
             if self.flag == EXACT:
                 return self.value, self.move
             elif self.flag == LOWERBOUND:
@@ -164,7 +164,7 @@ class Node:
                 else:
                     not_evaled.append(child)
             self.children = evaled + not_evaled
-            
+
         elif self.children == []:
             captures = []
             checks = []
@@ -175,21 +175,21 @@ class Node:
                 newnode = Node(newboard, move, self.net, self, self.depth + 1)
                 if self.board.is_capture(move):
                     captures.append(newnode)
-                elif self.board.is_check(move):
+                elif self.board.gives_check(move):
                     checks.append(newnode)
                 else:
                     others.append(newnode)
             self.children = captures + checks + others
 
         value = -10000
-        best_move = None
+        best_child = None
         for child in self.children:
-            newvalue, newmove = -child.negamax(depth - 1, -beta, -alpha, -color, start_time, time_for_this_move)
+            newvalue, newmove = child.negamax(depth - 1, -beta, -alpha, -color, start_time, time_for_this_move)
             if newvalue == TIMES_UP:
                 return TIMES_UP, None
-            if newvalue > value:
-                value = newvalue
-                best_move = newmove
+            if -newvalue > value:
+                value = -newvalue
+                best_child = child
             alpha = max(alpha, value)
             if alpha >= beta:
                 break
@@ -202,7 +202,7 @@ class Node:
         else:
             self.flag = EXACT
         
-        return value, best_move
+        return value, child.move
 
 
 
