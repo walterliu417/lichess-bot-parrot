@@ -53,6 +53,7 @@ class Parrot(ExampleEngine):
         # Hybrid MCTS + alpha-beta search.
         if time_limit.time:
             self.time_remaining = time_limit.time * 60
+            self.time_for_this_move = time_limit.time
         else:
             if board.turn == chess.WHITE:
                 self.time_remaining = time_limit.white_clock
@@ -60,9 +61,9 @@ class Parrot(ExampleEngine):
                 self.time_remaining = time_limit.black_clock
 
             # Simple time management
-            if board.fullmove_number < 40:
+            if board.fullmove_number < 30:
                 # Opening - save time
-                self.time_for_this_move = self.time_remaining * 0.7 / 20
+                self.time_for_this_move = self.time_remaining * 0.6 / 20
             else:
                 self.time_for_this_move = (self.time_remaining / 15)
         print(f"Time remaining: {self.time_remaining} seconds.")

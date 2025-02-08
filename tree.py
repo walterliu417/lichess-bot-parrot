@@ -202,7 +202,7 @@ class Node:
         else:
             self.flag = EXACT
         
-        return value, child.move
+        return value, best_child.move
 
 
 
