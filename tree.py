@@ -32,9 +32,9 @@ class Node:
 
     def ucb(self, c=1.4):
         try:
-            if self.board.turn:
+            if not self.board.turn:
                 return (self.value / (self.visits + 1)) + c * (np.log(self.parent.visits) / (self.visits + 1))
-            elif not self.board.turn:
+            elif self.board.turn:
                 return (self.value / (self.visits + 1)) - c * (np.log(self.parent.visits) / (self.visits + 1))
         except:
             return self.value / (self.visits + 1)
@@ -48,17 +48,17 @@ class Node:
         if TABLEBASE and lt5(self.board):
             result = TABLEBASE.probe_wdl(self.board)
             if result == 2:
-                return self.board.turn
+                return int(self.board.turn)
             elif result == -2:
-                return not self.board.turn
+                return int(not self.board.turn)
             elif result in [-1, 0, 1]:
                 return 0.5
         outcome = self.board.result(claim_draw=True)
         if outcome != "*":
             if outcome == "1-0":
-                return chess.WHITE + max((10 - self.depth) / 10, 0)
+                return int(chess.WHITE) + max((10 - self.depth) / 10, 0)
             elif outcome == "0-1":
-                return chess.BLACK - max((10 - self.depth) / 10, 0)
+                return int(chess.BLACK) - max((10 - self.depth) / 10, 0)
             elif outcome == "1/2-1/2":
                 return 0.5
         return None
