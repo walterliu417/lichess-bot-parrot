@@ -82,9 +82,7 @@ class Node:
                 all_positions.append(fast_board_to_boardmap(newboard))
                 all_feats.append(fast_board_to_feature(newboard))
                 not_evaled.append(newnode)
-            if self.table: 
-                newnode.flag = EXACT
-                self.table[newboard.fen()] = newnode
+            newnode.flag = EXACT
 
         pos = torch.tensor(all_positions, device=device, dtype=torch.float).reshape(len(not_evaled), 1, 8, 8)
         feat = torch.tensor(all_feats, device=device, dtype=torch.float).reshape(len(not_evaled), 12)
