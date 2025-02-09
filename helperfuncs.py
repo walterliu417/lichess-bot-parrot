@@ -5,6 +5,10 @@ import torch
 import torch.nn as nn
 import time
 
+nodes = 0
+eval_time = 0
+outcome_time = 0
+
 # Reconfigure device
 try:
     device = xm.xla_device()

@@ -70,24 +70,29 @@ class Parrot(ExampleEngine):
         print(f"Starting search for {self.time_for_this_move} seconds.")
         search_start = time.time()
         
-        root_node = Node(board, None, self.model, None)
+        helperfuncs.nodes = 0
+        ttable = dict()
+        root_node = Node(board, None, self.model, None, ttable)
         depth = 1
         color = 1 if board.turn else -1
         best_move = None
         best_value = None
+        print("Hello!")
         while time.time() - search_start < self.time_for_this_move:
-            value, move = root_node.negamax(depth, -10000, 10000, color, search_start, self.time_for_this_move)
-            if value == TIMES_UP:
-                break
-            depth += 1
-            best_move = move
-            best_value = value
-
-        print(f"Depth reached: {depth}")
-        print(f"Evaluation: {best_value}")
-        
+        #    value, move = root_node.negamax(depth, -10000, 10000, color, search_start, self.time_for_this_move)
+        #    if value == TIMES_UP:
+        #        break
+        #    depth += 1
+        #    best_move = move
+        #    best_value = value
+#
+        #print(f"Depth reached: {depth}, node hits: {helperfuncs.nodes}")
+        #print(f"Evaluation: {best_value}")
+            child = root_node.mcts(search_start, self.time_for_this_move)
+        print(f"Visits: {root_node.visits}")
+        print(f"Evaluation: {child.value}")
         try:
-            return PlayResult(best_move, None)
+            return PlayResult(child.move, None)
         except:
             # Fail-safe: return random move :(
             return PlayResult(random.choice(list(board.legal_moves)), None)

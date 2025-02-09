@@ -1,3 +1,5 @@
+from os import ttyname
+import helperfuncs
 from helperfuncs import *
 import numpy as np
 
@@ -18,7 +20,7 @@ class Node:
 
 class Node:
 
-    def __init__(self, board: chess.Board, move: chess.Move | None, net: nn.Module, parent: Node | None, depth=0):
+    def __init__(self, board: chess.Board, move: chess.Move | None, net: nn.Module, parent: Node | None, table: dict | None, depth=0):
         self.board = board
         self.move = move
         self.value = None
@@ -29,6 +31,7 @@ class Node:
         self.net = net
         self.children = []
         self.flag = None
+        self.table = table
 
     def ucb(self, c=1.4):
         try:
@@ -42,7 +45,8 @@ class Node:
     def evaluate_nn(self):
         pos = torch.tensor(fast_board_to_boardmap(self.board), device=device, dtype=torch.float).reshape(1, 1, 8, 8)
         feat = torch.tensor(fast_board_to_feature(self.board), device=device, dtype=torch.float).reshape(1, 12)
-        return self.net.forward(pos, feat)
+        with torch.no_grad():
+            return self.net.forward(pos, feat)
     
     def evaluate_position(self):
         if TABLEBASE and lt5(self.board):
@@ -93,14 +97,12 @@ class Node:
         
         self.children = evaled
 
-
     def mcts(self, start_time, time_for_this_move, c=1.4):
         while time.time() - start_time < time_for_this_move:
 
             # 1. Traverse tree
             target_node = self
             while target_node.children != []:
-                target_node.visits += 1
                 if target_node.board.turn:
                     target_node.children = sorted(target_node.children, key=lambda child: child.ucb(c), reverse=True)
                 elif not target_node.board.turn:
@@ -110,49 +112,74 @@ class Node:
             # 2. Expansion
             target_node.generate_children()
 
-            # 3. Backpropagation
-            if len(target_node.children) == 0:
+            # 3. Simulation
+            if target_node.board.turn:
+                best_value = max(target_node.children, key=lambda child: child.value).value
+            elif (not target_node.board.turn):
+                best_value = min(target_node.children, key=lambda child: child.value).value
+
+            # 4. Backpropagation
+            if target_node.visits == 0:
                 best_value = target_node.value
+                target_node.visits += 1
             else:
-                if target_node.board.turn:
-                    best_value = max(target_node.children, key=lambda child: child.value).value
-                elif target_node.board.turn:
-                    best_value = min(target_node.children, key=lambda child: child.value).value
+                target_node.value = ((target_node.value * target_node.visits) + best_value) / (target_node.visits + 1)
 
             while target_node.parent is not None:
                 target_node = target_node.parent
-                target_node.value = best_value
+                target_node.value = ((target_node.value * target_node.visits) + best_value) / (target_node.visits + 1)
+                target_node.visits += 1
 
         # 4. Select move
         if target_node.board.turn:
-            selected_child = max(self.children, key=lambda child: (0.8) * (child.visits / self.visits) + 0.2 * child.value)
+            selected_child = max(self.children, key=lambda child: (0.5) * (child.visits / self.visits) + 0.5 * child.value)
         elif not target_node.board.turn:
-            selected_child = min(self.children, key=lambda child: -(0.8) * (child.visits / self.visits) + 0.2 * child.value)
+            selected_child = min(self.children, key=lambda child: -(0.5) * (child.visits / self.visits) + 0.5 * child.value)
 
         return selected_child
     
     def negamax(self, depth, alpha, beta, color, start_time, time_for_this_move):
         if time.time() - start_time > time_for_this_move:
             return TIMES_UP, None
-        alpha_original = 0
-        
-        if (self.value is not None) and depth == 0:
-            if self.flag == EXACT:
-                return self.value, self.move
-            elif self.flag == LOWERBOUND:
-                alpha = max(alpha, self.value)
-            elif self.flag == UPPERBOUND:
-                beta = min(beta, self.value)
-            
-            if alpha >= beta:
-                return self.value, self.move
-        
+        alpha_original = alpha
+        try:
+            ttvalue, ttmove, flag, ttdepth = self.table[self.board.fen()]
+            if ttdepth >= depth:
+                if flag == EXACT:
+                    return ttvalue, ttmove
+                elif flag == LOWERBOUND:
+                    alpha = max(alpha, ttvalue)
+                elif self.flag == UPPERBOUND:
+                    beta = min(beta, ttvalue)
 
-        value = self.evaluate_position()
-        if value is not None:
-            return value * color, self.move
+                if alpha >= beta:
+                    return ttvalue, ttmove
+        except:
+            pass
+        helperfuncs.nodes += 1
+        s1 = time.time()
+        self.value = self.evaluate_position()
+        helperfuncs.outcome_time += (time.time() - s1)
+        if self.value is not None:
+            if self.value <= alpha_original:
+                self.flag = UPPERBOUND
+            elif self.value >= beta:
+                self.flag = LOWERBOUND
+            else:
+                self.flag = EXACT
+            return self.value * color, self.move
         if depth == 0:
-            return self.evaluate_nn() * color, self.move
+            s2 = time.time()
+            self.value = self.evaluate_nn()
+            helperfuncs.eval_time += (time.time() - s2)
+
+            if self.value <= alpha_original:
+                self.flag = UPPERBOUND
+            elif self.value >= beta:
+                self.flag = LOWERBOUND
+            else:
+                self.flag = EXACT
+            return self.value * color, self.move
         
         if self.children != []:
             evaled, not_evaled = [], []
@@ -161,6 +188,10 @@ class Node:
                     evaled.append(child)
                 else:
                     not_evaled.append(child)
+            if self.board.turn:
+                evaled = sorted(evaled, key=lambda x: x.value, reverse=True)
+            else:
+                evaled = sorted(evaled, key=lambda x: x.value)
             self.children = evaled + not_evaled
 
         elif self.children == []:
@@ -170,7 +201,7 @@ class Node:
             for move in self.board.legal_moves:
                 newboard = self.board.copy()
                 newboard.push(move)
-                newnode = Node(newboard, move, self.net, self, self.depth + 1)
+                newnode = Node(newboard, move, self.net, self, self.table, self.depth + 1)
                 if self.board.is_capture(move):
                     captures.append(newnode)
                 elif self.board.gives_check(move):
@@ -194,15 +225,10 @@ class Node:
 
         self.value = value
         if value <= alpha_original:
-            self.flag = UPPERBOUND
+            flag = UPPERBOUND
         elif value >= beta:
-            self.flag = LOWERBOUND
+            flag = LOWERBOUND
         else:
-            self.flag = EXACT
-        
+            flag = EXACT
+        self.table[self.board.fen()] = (self.value, self.move, flag, depth)
         return value, best_child.move
-
-
-
-
-
