@@ -1,4 +1,12 @@
-This is Walter Liu's implementation of lichess-bot, using my own chess engine. It uses a value-based neural network which was trained on 80+ million Stockfish evaluations from the Lichess database, and a simple alpha-beta search with iterative deepening. Currently the bot achieves an estimated ELO of 1200 (decent opening, some positional understanding, not very good at tactics). Its profile can be viewed on Lichess at (https://lichess.org/@/parrot-bot) .
+Updated 13/02/2025
+
+This is Walter Liu's implementation of lichess-bot, using my own chess engine. It uses a value-based neural network which was trained on 80+ million Stockfish evaluations from the Lichess database, and a simple best-first search. Currently the bot achieves an estimated ELO of 1500. Its profile can be viewed on Lichess at (https://lichess.org/@/parrot-bot).
+
+Some observations so far:
+- Decent opening knowledge without an opening book.
+- Plays sacrifices quite a lot, not all of them sound...
+- Due to the value-based network, it doesn't fight as hard when losing and misses best moves in winning positions.
+- 5-piece Syzygy tablebases are used to improve its endgame play.
 
 At the moment I am working on a new training routine using curriculum learning to allow the network to recognise more tactical positions by incorporating the Lichess puzzle database into the training data. Performance will be updated soon! (hopefully)
 
