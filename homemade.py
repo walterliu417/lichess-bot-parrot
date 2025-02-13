@@ -82,21 +82,24 @@ class Parrot(ExampleEngine):
         color = 1 if board.turn else -1
         best_move = None
         best_value = None
-        while time.time() - search_start < self.time_for_this_move:
-        #    value, move = root_node.negamax(depth, -10000, 10000, color, search_start, self.time_for_this_move)
-        #    if value == TIMES_UP:
-        #        break
-        #    depth += 1
-        #    best_move = move
-        #    best_value = value
-#
-        #print(f"Depth reached: {depth}, node hits: {helperfuncs.nodes}")
-        #print(f"Evaluation: {best_value}")
-            child = root_node.pns(search_start, self.time_for_this_move)
-            child = root_node.pns(search_start, self.time_for_this_move)
-        print(f"Nodes evaluated: {helperfuncs.nodes}")
-        print(f"Max depth: {helperfuncs.depth}")
-        print(f"Evaluation: {child.value}")
+        try:
+            while time.time() - search_start < self.time_for_this_move:
+            #    value, move = root_node.negamax(depth, -10000, 10000, color, search_start, self.time_for_this_move)
+            #    if value == TIMES_UP:
+            #        break
+            #    depth += 1
+            #    best_move = move
+            #    best_value = value
+#   
+            #print(f"Depth reached: {depth}, node hits: {helperfuncs.nodes}")
+            #print(f"Evaluation: {best_value}")
+                child = root_node.pns(search_start, self.time_for_this_move)
+            print(f"Nodes evaluated: {helperfuncs.nodes}")
+            print(f"Max depth: {helperfuncs.depth}")
+            print(f"Evaluation: {child.value}")
+        except Exception as e:
+            import traceback
+            print(traceback.format_exc())
         try:
             return PlayResult(child.move, None)
         except:

@@ -1,4 +1,5 @@
 from os import ttyname
+from typing_extensions import Self
 import helperfuncs
 from helperfuncs import *
 import numpy as np
@@ -43,15 +44,12 @@ class Node:
             return self.value / (self.visits + 1)
         
     def evaluate_nn(self):
-        helperfuncs.nodes += 1
-        helperfuncs.depth = max(helperfuncs.depth, self.depth)
         pos = torch.tensor(fast_board_to_boardmap(self.board), device=device, dtype=torch.float).reshape(1, 1, 8, 8)
         feat = torch.tensor(fast_board_to_feature(self.board), device=device, dtype=torch.float).reshape(1, 12)
         with torch.no_grad():
             return self.net.forward(pos, feat)
     
     def evaluate_position(self):
-        helperfuncs.depth = max(helperfuncs.depth, self.depth)
         if TABLEBASE and lt5(self.board):
             result = TABLEBASE.probe_wdl(self.board)
             if result == 2:
@@ -76,11 +74,13 @@ class Node:
 
         evaled = []
         not_evaled = []
-
-        for move in self.board.legal_moves:
+        helperfuncs.depth = max(helperfuncs.depth, self.depth + 1)
+        blm = self.board.legal_moves
+        helperfuncs.nodes += blm.count()
+        for move in blm:
             newboard = self.board.copy()
             newboard.push(move)
-            newnode = Node(newboard, move, self.net, self, self.depth + 1)
+            newnode = Node(newboard, move, self.net, self, self.table, depth=self.depth + 1)
             score = newnode.evaluate_position()
             if score is not None:
                 newnode.value = score
@@ -133,9 +133,9 @@ class Node:
                     break
 
         # 4. Select move
-        if target_node.board.turn:
+        if self.board.turn:
             selected_child = max(self.children, key=lambda child: child.value)
-        elif not target_node.board.turn:
+        elif not self.board.turn:
             selected_child = min(self.children, key=lambda child: child.value)
 
         return selected_child
