@@ -95,7 +95,7 @@ class Parrot(ExampleEngine):
             #print(f"Evaluation: {best_value}")
                 child = root_node.pns(search_start, self.time_for_this_move)
             print(f"Nodes evaluated: {helperfuncs.nodes}")
-            print(f"Max depth: {helperfuncs.depth}")
+            print(f"Max depth: {child.depth}")
             print(f"Evaluation: {child.value}")
         except Exception as e:
             import traceback
