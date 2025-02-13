@@ -8,6 +8,7 @@ import time
 nodes = 0
 eval_time = 0
 outcome_time = 0
+depth = 0
 
 # Reconfigure device
 try:

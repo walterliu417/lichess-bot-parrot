@@ -75,13 +75,13 @@ class Parrot(ExampleEngine):
         search_start = time.time()
         
         helperfuncs.nodes = 0
+        helperfuncs.depth = 0
         ttable = dict()
         root_node = Node(board, None, self.model, None, ttable)
         depth = 1
         color = 1 if board.turn else -1
         best_move = None
         best_value = None
-        print("Hello!")
         while time.time() - search_start < self.time_for_this_move:
         #    value, move = root_node.negamax(depth, -10000, 10000, color, search_start, self.time_for_this_move)
         #    if value == TIMES_UP:
@@ -93,7 +93,9 @@ class Parrot(ExampleEngine):
         #print(f"Depth reached: {depth}, node hits: {helperfuncs.nodes}")
         #print(f"Evaluation: {best_value}")
             child = root_node.pns(search_start, self.time_for_this_move)
-        print(f"Visits: {root_node.visits}")
+            child = root_node.pns(search_start, self.time_for_this_move)
+        print(f"Nodes evaluated: {helperfuncs.nodes}")
+        print(f"Max depth: {helperfuncs.depth}")
         print(f"Evaluation: {child.value}")
         try:
             return PlayResult(child.move, None)

@@ -43,12 +43,15 @@ class Node:
             return self.value / (self.visits + 1)
         
     def evaluate_nn(self):
+        helperfuncs.nodes += 1
+        helperfuncs.depth = max(helperfuncs.depth, self.depth)
         pos = torch.tensor(fast_board_to_boardmap(self.board), device=device, dtype=torch.float).reshape(1, 1, 8, 8)
         feat = torch.tensor(fast_board_to_feature(self.board), device=device, dtype=torch.float).reshape(1, 12)
         with torch.no_grad():
             return self.net.forward(pos, feat)
     
     def evaluate_position(self):
+        helperfuncs.depth = max(helperfuncs.depth, self.depth)
         if TABLEBASE and lt5(self.board):
             result = TABLEBASE.probe_wdl(self.board)
             if result == 2:
@@ -115,10 +118,15 @@ class Node:
 
             # 3. Backpropagation
             while True:
-                if target_node.board.turn:
-                    target_node.value = max(target_node.children, key=lambda child: child.value).value
-                elif (not target_node.board.turn):
-                    target_node.value = min(target_node.children, key=lambda child: child.value).value
+                if target_node.children == []:
+                    target_node.value = target_node.evaluate_position()
+                    if target_node.value is None:
+                        target_node.value = target_node.evaluate_nn()
+                else:
+                    if target_node.board.turn:
+                        target_node.value = max(target_node.children, key=lambda child: child.value).value
+                    elif (not target_node.board.turn):
+                        target_node.value = min(target_node.children, key=lambda child: child.value).value
                 if target_node.parent is not None:
                     target_node = target_node.parent
                 else:
