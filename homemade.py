@@ -50,7 +50,7 @@ class Parrot(ExampleEngine):
         print("Current best model loaded successfully!")
 
     def search(self, board: chess.Board, time_limit: chess.engine.Limit, *args) -> PlayResult:
-        # Hybrid MCTS + alpha-beta search.
+        # Evaluation function based best-first search.
         if time_limit.time:
             self.time_remaining = time_limit.time * 60
             self.time_for_this_move = time_limit.time
@@ -60,12 +60,16 @@ class Parrot(ExampleEngine):
             elif board.turn == chess.BLACK:
                 self.time_remaining = time_limit.black_clock
 
-            # Simple time management
-            if board.fullmove_number < 30:
+            # Simple time management (?)
+            if board.fullmove_number < 5:
                 # Opening - save time
-                self.time_for_this_move = self.time_remaining * 0.6 / 20
+                self.time_for_this_move = self.time_remaining * 0.4 / 20
+            elif board.fullmove_number < 25:
+                # Midgame - use time
+                self.time_for_this_move = self.time_remaining * 0.8 / 20
             else:
-                self.time_for_this_move = (self.time_remaining / 15)
+                # Endgame
+                self.time_for_this_move = (self.time_remaining / 20)
         print(f"Time remaining: {self.time_remaining} seconds.")
         print(f"Starting search for {self.time_for_this_move} seconds.")
         search_start = time.time()
@@ -88,7 +92,7 @@ class Parrot(ExampleEngine):
 #
         #print(f"Depth reached: {depth}, node hits: {helperfuncs.nodes}")
         #print(f"Evaluation: {best_value}")
-            child = root_node.mcts(search_start, self.time_for_this_move)
+            child = root_node.pns(search_start, self.time_for_this_move)
         print(f"Visits: {root_node.visits}")
         print(f"Evaluation: {child.value}")
         try:

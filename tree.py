@@ -97,44 +97,38 @@ class Node:
         
         self.children = evaled
 
-    def mcts(self, start_time, time_for_this_move, c=1.4):
+    def pns(self, start_time, time_for_this_move):
         while time.time() - start_time < time_for_this_move:
 
             # 1. Traverse tree
             target_node = self
             while target_node.children != []:
                 if target_node.board.turn:
-                    target_node.children = sorted(target_node.children, key=lambda child: child.ucb(c), reverse=True)
+                    target_node.children = sorted(target_node.children, key=lambda child: child.value, reverse=True)
                 elif not target_node.board.turn:
-                    target_node.children = sorted(target_node.children, key=lambda child: child.ucb(c))
+                    target_node.children = sorted(target_node.children, key=lambda child: child.value)
                 target_node = target_node.children[0]
             
-            # 2. Expansion
+            # 2. Expansion and simulation
             target_node.generate_children()
 
-            # 3. Simulation
-            if target_node.board.turn:
-                best_value = max(target_node.children, key=lambda child: child.value).value
-            elif (not target_node.board.turn):
-                best_value = min(target_node.children, key=lambda child: child.value).value
 
-            # 4. Backpropagation
-            if target_node.visits == 0:
-                best_value = target_node.value
-                target_node.visits += 1
-            else:
-                target_node.value = ((target_node.value * target_node.visits) + best_value) / (target_node.visits + 1)
-
-            while target_node.parent is not None:
-                target_node = target_node.parent
-                target_node.value = ((target_node.value * target_node.visits) + best_value) / (target_node.visits + 1)
-                target_node.visits += 1
+            # 3. Backpropagation
+            while True:
+                if target_node.board.turn:
+                    target_node.value = max(target_node.children, key=lambda child: child.value).value
+                elif (not target_node.board.turn):
+                    target_node.value = min(target_node.children, key=lambda child: child.value).value
+                if target_node.parent is not None:
+                    target_node = target_node.parent
+                else:
+                    break
 
         # 4. Select move
         if target_node.board.turn:
-            selected_child = max(self.children, key=lambda child: (0.5) * (child.visits / self.visits) + 0.5 * child.value)
+            selected_child = max(self.children, key=lambda child: child.value)
         elif not target_node.board.turn:
-            selected_child = min(self.children, key=lambda child: -(0.5) * (child.visits / self.visits) + 0.5 * child.value)
+            selected_child = min(self.children, key=lambda child: child.value)
 
         return selected_child
     
