@@ -39,6 +39,7 @@ class Parrot(ExampleEngine):
         super().__init__(*args, **kwargs)
         self.time_remaining = 0
         self.time_control = 0
+        self.root_node = None
         
         model_name = "new_parrot"
         self.model = SimpleModel(model_name)
@@ -77,7 +78,8 @@ class Parrot(ExampleEngine):
         helperfuncs.nodes = 0
         helperfuncs.depth = 0
         ttable = dict()
-        root_node = Node(board, None, self.model, None, ttable)
+        if not self.root_node:
+            self.root_node = root_node = Node(board, None, self.model, None, ttable)
         depth = 1
         color = 1 if board.turn else -1
         best_move = None
@@ -93,10 +95,11 @@ class Parrot(ExampleEngine):
 #   
             #print(f"Depth reached: {depth}, node hits: {helperfuncs.nodes}")
             #print(f"Evaluation: {best_value}")
-                child = root_node.pns(search_start, self.time_for_this_move)
+                child = self.root_node.pns(search_start, self.time_for_this_move)
             print(f"Nodes evaluated: {helperfuncs.nodes}")
             print(f"Max depth: {child.depth}")
             print(f"Evaluation: {child.value}")
+            self.root_node = child
         except Exception as e:
             import traceback
             print(traceback.format_exc())
