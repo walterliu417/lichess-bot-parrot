@@ -1,110 +1,237 @@
-"""
-This file is designed to interact with the Colab notebook parrot_implementation.ipynb.
-"""
-import chess
-from chess.engine import PlayResult, Limit
-import random
-from lib.engine_wrapper import MinimalEngine
-from lib.lichess_types import MOVE, HOMEMADE_ARGS_TYPE
-import time
-
+from os import ttyname
+from typing_extensions import Self
+import helperfuncs
 from helperfuncs import *
-from tree import *
-from nn_creator import *
-
-# Logging is useless in Google Colab, replaced with print.
-
+import numpy as np
 
 try:
     TABLEBASE = chess.syzygy.open_tablebase("/content/drive/MyDrive/parrot/tablebase_5pc")
+    print("5 piece Syzygy endgame tablebase found.")
 except:
-    print("Could not find 5-piece tablebase.")
+    print("Could not find tablebase")
     TABLEBASE = None
-    
 
-class ExampleEngine(MinimalEngine):
-    """An example engine that all homemade engines inherit."""
+TIMES_UP = -999
+EXACT = 0
+LOWERBOUND = 1
+UPPERBOUND = 2
 
+class Node:
+    pass
 
-class RandomMove(ExampleEngine):
-    """Get a random move."""
+class Node:
 
-    def search(self, board: chess.Board, *args: HOMEMADE_ARGS_TYPE) -> PlayResult:  # noqa: ARG002
-        """Choose a random move."""
-        return PlayResult(random.choice(list(board.legal_moves)), None)
+    def __init__(self, board: chess.Board, move: chess.Move | None, net: nn.Module, parent: Node | None, table: dict | None, depth=0):
+        self.board = board
+        self.move = move
+        self.value = None
+        self.parent = parent
+        self.visits = 0
+        self.depth = depth
 
-class Parrot(ExampleEngine):
+        self.net = net
+        self.children = []
+        self.flag = None
+        self.table = table
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.time_remaining = 0
-        self.time_control = 0
-        self.root_node = None
-        
-        model_name = "new_parrot"
-        self.model = SimpleModel(model_name)
-        state = torch.load(f"/content/drive/MyDrive/parrot/best_{model_name}.pickle", weights_only=True, map_location=device)
-        self.model.load_state_dict(state)
-        self.model.to(device)
-        self.model.eval()
-        print(self.model)
-        print("Current best model loaded successfully!")
-
-    def search(self, board: chess.Board, time_limit: chess.engine.Limit, *args) -> PlayResult:
-        # Evaluation function based best-first search.
-        if time_limit.time:
-            self.time_remaining = time_limit.time * 60
-            self.time_for_this_move = time_limit.time
-        else:
-            if board.turn == chess.WHITE:
-                self.time_remaining = time_limit.white_clock
-            elif board.turn == chess.BLACK:
-                self.time_remaining = time_limit.black_clock
-
-            # Simple time management (?)
-            if board.fullmove_number < 5:
-                # Opening - save time
-                self.time_for_this_move = self.time_remaining * 0.4 / 20
-            elif board.fullmove_number < 25:
-                # Midgame - use time
-                self.time_for_this_move = self.time_remaining * 0.8 / 20
-            else:
-                # Endgame
-                self.time_for_this_move = (self.time_remaining / 20)
-        print(f"Time remaining: {self.time_remaining} seconds.")
-        print(f"Starting search for {self.time_for_this_move} seconds.")
-        search_start = time.time()
-        
-        helperfuncs.nodes = 0
-        helperfuncs.depth = 0
-        ttable = dict()
-        if not self.root_node:
-            self.root_node = root_node = Node(board, None, self.model, None, ttable)
-        depth = 1
-        color = 1 if board.turn else -1
-        best_move = None
-        best_value = None
+    def ucb(self, c=1.4):
         try:
-            while time.time() - search_start < self.time_for_this_move:
-            #    value, move = root_node.negamax(depth, -10000, 10000, color, search_start, self.time_for_this_move)
-            #    if value == TIMES_UP:
-            #        break
-            #    depth += 1
-            #    best_move = move
-            #    best_value = value
-#   
-            #print(f"Depth reached: {depth}, node hits: {helperfuncs.nodes}")
-            #print(f"Evaluation: {best_value}")
-                child = self.root_node.pns(search_start, self.time_for_this_move)
-            print(f"Nodes evaluated: {helperfuncs.nodes}")
-            print(f"Max depth: {child.depth}")
-            print(f"Evaluation: {child.value}")
-            self.root_node = child
-        except Exception as e:
-            import traceback
-            print(traceback.format_exc())
-        try:
-            return PlayResult(child.move, None)
+            if not self.board.turn:
+                return (self.value / (self.visits + 1)) + c * (np.log(self.parent.visits) / (self.visits + 1))
+            elif self.board.turn:
+                return (self.value / (self.visits + 1)) - c * (np.log(self.parent.visits) / (self.visits + 1))
         except:
-            # Fail-safe: return random move :(
-            return PlayResult(random.choice(list(board.legal_moves)), None)
+            return self.value / (self.visits + 1)
+        
+    def evaluate_nn(self):
+        pos = torch.tensor(fast_board_to_boardmap(self.board), device=device, dtype=torch.float).reshape(1, 1, 8, 8)
+        feat = torch.tensor(fast_board_to_feature(self.board), device=device, dtype=torch.float).reshape(1, 12)
+        with torch.no_grad():
+            return self.net.forward(pos, feat)
+    
+    def evaluate_position(self):
+        if TABLEBASE and lt5(self.board):
+            result = TABLEBASE.probe_wdl(self.board)
+            if result == 2:
+                return int(self.board.turn)
+            elif result == -2:
+                return int(not self.board.turn)
+            elif result in [-1, 0, 1]:
+                return 0.5
+        outcome = self.board.result(claim_draw=True)
+        if outcome != "*":
+            if outcome == "1-0":
+                return int(chess.WHITE) + max((10 - self.depth) / 10, 0)
+            elif outcome == "0-1":
+                return int(chess.BLACK) - max((10 - self.depth) / 10, 0)
+            elif outcome == "1/2-1/2":
+                return 0.5
+        return None
+    
+    def generate_children(self):
+        all_positions = []
+        all_feats = []
+
+        evaled = []
+        not_evaled = []
+        helperfuncs.depth = max(helperfuncs.depth, self.depth + 1)
+        blm = self.board.legal_moves
+        helperfuncs.nodes += blm.count()
+        for move in blm:
+            newboard = self.board.copy()
+            newboard.push(move)
+            newnode = Node(newboard, move, self.net, self, self.table, depth=self.depth + 1)
+            score = newnode.evaluate_position()
+            if score is not None:
+                newnode.value = score
+                evaled.append(newnode)
+            else:
+                all_positions.append(fast_board_to_boardmap(newboard))
+                all_feats.append(fast_board_to_feature(newboard))
+                not_evaled.append(newnode)
+            newnode.flag = EXACT
+
+        pos = torch.tensor(all_positions, device=device, dtype=torch.float).reshape(len(not_evaled), 1, 8, 8)
+        feat = torch.tensor(all_feats, device=device, dtype=torch.float).reshape(len(not_evaled), 12)
+        result = self.net.forward(pos, feat)
+        for i in range(len(not_evaled)):
+            not_evaled[i].value = float(result[i])
+            evaled.append(not_evaled[i])
+        
+        self.children = evaled
+
+    def pns(self, start_time, time_for_this_move):
+        while time.time() - start_time < time_for_this_move:
+
+            # 1. Traverse tree
+            target_node = self
+            while target_node.children != []:
+                target_node.visits += 1
+                if target_node.board.turn:
+                    target_node.children = sorted(target_node.children, key=lambda child: child.ucb(0.5), reverse=True)
+                elif not target_node.board.turn:
+                    target_node.children = sorted(target_node.children, key=lambda child: child.ucb(0.5))
+                target_node = target_node.children[0]
+            
+            # 2. Expansion and simulation
+            target_node.generate_children()
+
+
+            # 3. Backpropagation
+            while True:
+                if target_node.children == []:
+                    target_node.value = target_node.evaluate_position()
+                    if target_node.value is None:
+                        target_node.value = target_node.evaluate_nn()
+                else:
+                    if target_node.board.turn:
+                        target_node.value = max(target_node.children, key=lambda child: child.value).value
+                    elif (not target_node.board.turn):
+                        target_node.value = min(target_node.children, key=lambda child: child.value).value
+                if target_node.parent is not None:
+                    target_node = target_node.parent
+                else:
+                    break
+
+        # 4. Select move
+        if self.board.turn:
+            selected_child = max(self.children, key=lambda child: child.value)
+        elif not self.board.turn:
+            selected_child = min(self.children, key=lambda child: child.value)
+
+        return selected_child
+    
+    def negamax(self, depth, alpha, beta, color, start_time, time_for_this_move):
+        if time.time() - start_time > time_for_this_move:
+            return TIMES_UP, None
+        alpha_original = alpha
+        try:
+            ttvalue, ttmove, flag, ttdepth = self.table[self.board.fen()]
+            if ttdepth >= depth:
+                if flag == EXACT:
+                    return ttvalue, ttmove
+                elif flag == LOWERBOUND:
+                    alpha = max(alpha, ttvalue)
+                elif self.flag == UPPERBOUND:
+                    beta = min(beta, ttvalue)
+
+                if alpha >= beta:
+                    return ttvalue, ttmove
+        except:
+            pass
+        helperfuncs.nodes += 1
+        s1 = time.time()
+        self.value = self.evaluate_position()
+        helperfuncs.outcome_time += (time.time() - s1)
+        if self.value is not None:
+            if self.value <= alpha_original:
+                self.flag = UPPERBOUND
+            elif self.value >= beta:
+                self.flag = LOWERBOUND
+            else:
+                self.flag = EXACT
+            return self.value * color, self.move
+        if depth == 0:
+            s2 = time.time()
+            self.value = self.evaluate_nn()
+            helperfuncs.eval_time += (time.time() - s2)
+
+            if self.value <= alpha_original:
+                self.flag = UPPERBOUND
+            elif self.value >= beta:
+                self.flag = LOWERBOUND
+            else:
+                self.flag = EXACT
+            return self.value * color, self.move
+        
+        if self.children != []:
+            evaled, not_evaled = [], []
+            for child in self.children:
+                if child.value is not None:
+                    evaled.append(child)
+                else:
+                    not_evaled.append(child)
+            if self.board.turn:
+                evaled = sorted(evaled, key=lambda x: x.value, reverse=True)
+            else:
+                evaled = sorted(evaled, key=lambda x: x.value)
+            self.children = evaled + not_evaled
+
+        elif self.children == []:
+            captures = []
+            checks = []
+            others = []
+            for move in self.board.legal_moves:
+                newboard = self.board.copy()
+                newboard.push(move)
+                newnode = Node(newboard, move, self.net, self, self.table, self.depth + 1)
+                if self.board.is_capture(move):
+                    captures.append(newnode)
+                elif self.board.gives_check(move):
+                    checks.append(newnode)
+                else:
+                    others.append(newnode)
+            self.children = captures + checks + others
+
+        value = -10000
+        best_child = None
+        for child in self.children:
+            newvalue, newmove = child.negamax(depth - 1, -beta, -alpha, -color, start_time, time_for_this_move)
+            if newvalue == TIMES_UP:
+                return TIMES_UP, None
+            if -newvalue > value:
+                value = -newvalue
+                best_child = child
+            alpha = max(alpha, value)
+            if alpha >= beta:
+                break
+
+        self.value = value
+        if value <= alpha_original:
+            flag = UPPERBOUND
+        elif value >= beta:
+            flag = LOWERBOUND
+        else:
+            flag = EXACT
+        self.table[self.board.fen()] = (self.value, self.move, flag, depth)
+        return value, best_child.move

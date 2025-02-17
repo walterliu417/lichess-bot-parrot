@@ -106,6 +106,7 @@ class Node:
             # 1. Traverse tree
             target_node = self
             while target_node.children != []:
+                target_node.visits += 1
                 if target_node.board.turn:
                     target_node.children = sorted(target_node.children, key=lambda child: child.value, reverse=True)
                 elif not target_node.board.turn:
@@ -114,6 +115,7 @@ class Node:
             
             # 2. Expansion and simulation
             target_node.generate_children()
+            target_node.visits += 1
 
 
             # 3. Backpropagation
@@ -132,11 +134,8 @@ class Node:
                 else:
                     break
 
-        # 4. Select move
-        if self.board.turn:
-            selected_child = max(self.children, key=lambda child: child.value)
-        elif not self.board.turn:
-            selected_child = min(self.children, key=lambda child: child.value)
+        # 4. Select move - UBFMS
+        selected_child = max(self.children, key=lambda child: child.visits)
 
         return selected_child
     
