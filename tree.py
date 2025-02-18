@@ -135,8 +135,13 @@ class Node:
                     break
 
         # 4. Select move - UBFMS
-        selected_child = max(self.children, key=lambda child: child.visits)
-
+        max_visits = max(self.children, key=lambda child: child.visits)
+        print(max_visits.visits)
+        if self.board.turn:
+          selected_child = max(self.children, key=lambda child: 0.3 * child.value + 0.7 * child.visits / max_visits.visits)
+        elif not self.board.turn:
+          selected_child = min(self.children, key=lambda child: 0.3 * child.value - 0.7 * child.visits / max_visits.visits)
+        print(selected_child.visits, selected_child.value)
         return selected_child
     
     def negamax(self, depth, alpha, beta, color, start_time, time_for_this_move):

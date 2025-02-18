@@ -41,8 +41,8 @@ class Parrot(ExampleEngine):
         self.time_control = 0
         self.root_node = None
         
-        model_name = "new_parrot"
-        self.model = SimpleModel(model_name)
+        model_name = "complex_parrot"
+        self.model = ComplexModel(model_name)
         state = torch.load(f"/content/drive/MyDrive/parrot/best_{model_name}.pickle", weights_only=True, map_location=device)
         self.model.load_state_dict(state)
         self.model.to(device)
@@ -83,7 +83,7 @@ class Parrot(ExampleEngine):
         else:
             tt = False
             for child in self.root_node.children:
-                if child.fen() == board.fen():
+                if child.board.fen() == board.fen():
                     tt = True
                     self.root_node = child
                     break
@@ -105,13 +105,14 @@ class Parrot(ExampleEngine):
             #print(f"Evaluation: {best_value}")
                 child = self.root_node.pns(search_start, self.time_for_this_move)
             print(f"Nodes evaluated: {helperfuncs.nodes}")
-            print(f"Max depth: {child.depth}")
+            print(f"Child visits: {child.visits}")
             print(f"Evaluation: {child.value}")
             self.root_node = child
         except Exception as e:
             import traceback
             print(traceback.format_exc())
         try:
+            print("Playing move", child.move)
             return PlayResult(child.move, None)
         except:
             # Fail-safe: return random move :(
