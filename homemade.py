@@ -41,7 +41,7 @@ class Parrot(ExampleEngine):
         self.time_control = 0
         self.root_node = None
         
-        model_name = "complex_parrot"
+        model_name = "potential_parrot"
         self.model = ComplexModel(model_name)
         state = torch.load(f"/content/drive/MyDrive/parrot/best_{model_name}.pickle", weights_only=True, map_location=device)
         self.model.load_state_dict(state)
