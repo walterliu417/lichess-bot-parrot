@@ -3,6 +3,46 @@ from typing_extensions import Self
 import helperfuncs
 from helperfuncs import *
 import numpy as np
+def fast_board_to_boardmap(board):
+    # Slower than piece_map() when there are less pieces on the board, but faster (~2x) in most cases.
+    boards = [[0 for _ in range(8)] for _ in range(8)]
+    for square in board.pieces(chess.PAWN, chess.WHITE):
+        idx = squareint_to_square(square)
+        boards[idx[0]][idx[1]] = chr_to_num["P"]
+    for square in board.pieces(chess.PAWN, chess.BLACK):
+        idx = squareint_to_square(square)
+        boards[idx[0]][idx[1]] = chr_to_num["p"]
+    for square in board.pieces(chess.KNIGHT, chess.WHITE):
+        idx = squareint_to_square(square)
+        boards[idx[0]][idx[1]] = chr_to_num["N"]
+    for square in board.pieces(chess.KNIGHT, chess.BLACK):
+        idx = squareint_to_square(square)
+        boards[idx[0]][idx[1]] = chr_to_num["n"]
+    for square in board.pieces(chess.BISHOP, chess.WHITE):
+        idx = squareint_to_square(square)
+        boards[idx[0]][idx[1]] = chr_to_num["B"]
+    for square in board.pieces(chess.BISHOP, chess.BLACK):
+        idx = squareint_to_square(square)
+        boards[idx[0]][idx[1]] = chr_to_num["b"]
+    for square in board.pieces(chess.ROOK, chess.WHITE):
+        idx = squareint_to_square(square)
+        boards[idx[0]][idx[1]] = chr_to_num["R"]
+    for square in board.pieces(chess.ROOK, chess.BLACK):
+        idx = squareint_to_square(square)
+        boards[idx[0]][idx[1]] = chr_to_num["r"]
+    for square in board.pieces(chess.QUEEN, chess.WHITE):
+        idx = squareint_to_square(square)
+        boards[idx[0]][idx[1]] = chr_to_num["Q"]
+    for square in board.pieces(chess.QUEEN, chess.BLACK):
+        idx = squareint_to_square(square)
+        boards[idx[0]][idx[1]] = chr_to_num["q"]
+    for square in board.pieces(chess.KING, chess.WHITE):
+        idx = squareint_to_square(square)
+        boards[idx[0]][idx[1]] = chr_to_num["K"]
+    for square in board.pieces(chess.KING, chess.BLACK):
+        idx = squareint_to_square(square)
+        boards[idx[0]][idx[1]] = chr_to_num["k"]
+    return [boards]
 
 try:
     TABLEBASE = chess.syzygy.open_tablebase("/content/drive/MyDrive/parrot/tablebase_5pc")
@@ -56,17 +96,21 @@ class Node:
         if TABLEBASE and lt5(self.board):
             result = TABLEBASE.probe_wdl(self.board)
             if result == 2:
-                return int(self.board.turn)
+                return 1
             elif result == -2:
-                return int(not self.board.turn)
+                return 0
             elif result in [-1, 0, 1]:
                 return 0.5
         outcome = self.board.result(claim_draw=True)
         if outcome != "*":
-            if outcome == "1-0":
-                return int(chess.WHITE) + max((10 - self.depth) / 10, 0)
-            elif outcome == "0-1":
-                return int(chess.BLACK) - max((10 - self.depth) / 10, 0)
+            if (outcome == "1-0") and self.board.turn:
+                return 1 + max((10 - self.depth) / 10, 0)
+            elif (outcome == "0-1") and self.board.turn:
+                return 0 - max((10 - self.depth) / 10, 0)
+            elif (outcome == "1-0") and not self.board.turn:
+                return 0 - max((10 - self.depth) / 10, 0)
+            elif (outcome == "0-1") and not self.board.turn:
+                return 1 + max((10 - self.depth) / 10, 0)
             elif outcome == "1/2-1/2":
                 return 0.5
         return None
@@ -111,7 +155,7 @@ class Node:
             target_node = self
             while target_node.children != []:
                 target_node.visits += 1
-                target_node.children = sorted(target_node.children, key=lambda child: child.value, reverse=True)
+                target_node.children = sorted(target_node.children, key=lambda child: child.value)
                 target_node = target_node.children[0]
             
             # 2. Expansion and simulation
@@ -125,7 +169,7 @@ class Node:
                     if target_node.value is None:
                         target_node.value = target_node.evaluate_nn()
                 else:
-                    target_node.value = max(target_node.children, key=lambda child: child.value).value
+                    target_node.value = min(target_node.children, key=lambda child: child.value).value
                 if target_node.parent is not None:
                     target_node = target_node.parent
                 else:

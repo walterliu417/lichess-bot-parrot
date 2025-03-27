@@ -37,7 +37,7 @@ def int_to_bin(anint, pad=4):
 
 def fast_board_to_boardmap(board):
     # Slower than piece_map() when there are less pieces on the board, but faster (~2x) in most cases.
-    boards = [[0.5 for _ in range(8)] for _ in range(8)]
+    boards = [[0 for _ in range(8)] for _ in range(8)]
     for square in board.pieces(chess.PAWN, chess.WHITE):
         idx = squareint_to_square(square)
         boards[idx[0]][idx[1]] = chr_to_num["P"]

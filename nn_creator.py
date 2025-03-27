@@ -47,6 +47,7 @@ class SimpleModel(nn.Module):
 
         self.mlp = nn.Sequential()
         self.mlp.add_module("Layer 1", nn.Linear(700, 500))
+        self.mlp.add_module("Batchnorm 1", nn.BatchNorm1d(500))
         self.mlp.add_module("Activation 1", nn.LeakyReLU())
         self.mlp.add_module("Layer 2", nn.Linear(500, 250))
         self.mlp.add_module("Activation 2", nn.LeakyReLU())
