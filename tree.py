@@ -1,48 +1,6 @@
-from os import ttyname
-from typing_extensions import Self
 import helperfuncs
 from helperfuncs import *
 import numpy as np
-def fast_board_to_boardmap(board):
-    # Slower than piece_map() when there are less pieces on the board, but faster (~2x) in most cases.
-    boards = [[0 for _ in range(8)] for _ in range(8)]
-    for square in board.pieces(chess.PAWN, chess.WHITE):
-        idx = squareint_to_square(square)
-        boards[idx[0]][idx[1]] = chr_to_num["P"]
-    for square in board.pieces(chess.PAWN, chess.BLACK):
-        idx = squareint_to_square(square)
-        boards[idx[0]][idx[1]] = chr_to_num["p"]
-    for square in board.pieces(chess.KNIGHT, chess.WHITE):
-        idx = squareint_to_square(square)
-        boards[idx[0]][idx[1]] = chr_to_num["N"]
-    for square in board.pieces(chess.KNIGHT, chess.BLACK):
-        idx = squareint_to_square(square)
-        boards[idx[0]][idx[1]] = chr_to_num["n"]
-    for square in board.pieces(chess.BISHOP, chess.WHITE):
-        idx = squareint_to_square(square)
-        boards[idx[0]][idx[1]] = chr_to_num["B"]
-    for square in board.pieces(chess.BISHOP, chess.BLACK):
-        idx = squareint_to_square(square)
-        boards[idx[0]][idx[1]] = chr_to_num["b"]
-    for square in board.pieces(chess.ROOK, chess.WHITE):
-        idx = squareint_to_square(square)
-        boards[idx[0]][idx[1]] = chr_to_num["R"]
-    for square in board.pieces(chess.ROOK, chess.BLACK):
-        idx = squareint_to_square(square)
-        boards[idx[0]][idx[1]] = chr_to_num["r"]
-    for square in board.pieces(chess.QUEEN, chess.WHITE):
-        idx = squareint_to_square(square)
-        boards[idx[0]][idx[1]] = chr_to_num["Q"]
-    for square in board.pieces(chess.QUEEN, chess.BLACK):
-        idx = squareint_to_square(square)
-        boards[idx[0]][idx[1]] = chr_to_num["q"]
-    for square in board.pieces(chess.KING, chess.WHITE):
-        idx = squareint_to_square(square)
-        boards[idx[0]][idx[1]] = chr_to_num["K"]
-    for square in board.pieces(chess.KING, chess.BLACK):
-        idx = squareint_to_square(square)
-        boards[idx[0]][idx[1]] = chr_to_num["k"]
-    return [boards]
 
 try:
     TABLEBASE = chess.syzygy.open_tablebase("/content/drive/MyDrive/parrot/tablebase_5pc")
@@ -155,8 +113,7 @@ class Node:
             target_node = self
             while target_node.children != []:
                 target_node.visits += 1
-                target_node.children = sorted(target_node.children, key=lambda child: child.value)
-                target_node = target_node.children[0]
+                target_node = min(target_node.children, key=lambda child: child.value)
             
             # 2. Expansion and simulation
             target_node.generate_children()
@@ -165,11 +122,11 @@ class Node:
             # 3. Backpropagation
             while True:
                 if target_node.children == []:
-                    target_node.value = target_node.evaluate_position()
+                    target_node.value = 1 - target_node.evaluate_position()
                     if target_node.value is None:
-                        target_node.value = target_node.evaluate_nn()
+                        target_node.value = 1 - target_node.evaluate_nn()
                 else:
-                    target_node.value = min(target_node.children, key=lambda child: child.value).value
+                    target_node.value = 1 - min(target_node.children, key=lambda child: child.value).value
                 if target_node.parent is not None:
                     target_node = target_node.parent
                 else:
@@ -178,101 +135,6 @@ class Node:
         # 4. Select move - UBFMS
         max_visits = max(self.children, key=lambda child: child.visits)
         print(max_visits.visits)
-        selected_child = max(self.children, key=lambda child: 0.3 * child.value + 0.7 * child.visits / max_visits.visits)
+        selected_child = min(self.children, key=lambda child: child.value)
         print(selected_child.visits, selected_child.value)
         return selected_child
-    
-    def negamax(self, depth, alpha, beta, color, start_time, time_for_this_move):
-        if time.time() - start_time > time_for_this_move:
-            return TIMES_UP, None
-        alpha_original = alpha
-        try:
-            ttvalue, ttmove, flag, ttdepth = self.table[self.board.fen()]
-            if ttdepth >= depth:
-                if flag == EXACT:
-                    return ttvalue, ttmove
-                elif flag == LOWERBOUND:
-                    alpha = max(alpha, ttvalue)
-                elif self.flag == UPPERBOUND:
-                    beta = min(beta, ttvalue)
-
-                if alpha >= beta:
-                    return ttvalue, ttmove
-        except:
-            pass
-        helperfuncs.nodes += 1
-        s1 = time.time()
-        self.value = self.evaluate_position()
-        helperfuncs.outcome_time += (time.time() - s1)
-        if self.value is not None:
-            if self.value <= alpha_original:
-                self.flag = UPPERBOUND
-            elif self.value >= beta:
-                self.flag = LOWERBOUND
-            else:
-                self.flag = EXACT
-            return self.value * color, self.move
-        if depth == 0:
-            s2 = time.time()
-            self.value = self.evaluate_nn()
-            helperfuncs.eval_time += (time.time() - s2)
-
-            if self.value <= alpha_original:
-                self.flag = UPPERBOUND
-            elif self.value >= beta:
-                self.flag = LOWERBOUND
-            else:
-                self.flag = EXACT
-            return self.value * color, self.move
-        
-        if self.children != []:
-            evaled, not_evaled = [], []
-            for child in self.children:
-                if child.value is not None:
-                    evaled.append(child)
-                else:
-                    not_evaled.append(child)
-            if self.board.turn:
-                evaled = sorted(evaled, key=lambda x: x.value, reverse=True)
-            else:
-                evaled = sorted(evaled, key=lambda x: x.value)
-            self.children = evaled + not_evaled
-
-        elif self.children == []:
-            captures = []
-            checks = []
-            others = []
-            for move in self.board.legal_moves:
-                newboard = self.board.copy()
-                newboard.push(move)
-                newnode = Node(newboard, move, self.net, self, self.table, self.depth + 1)
-                if self.board.is_capture(move):
-                    captures.append(newnode)
-                elif self.board.gives_check(move):
-                    checks.append(newnode)
-                else:
-                    others.append(newnode)
-            self.children = captures + checks + others
-
-        value = -10000
-        best_child = None
-        for child in self.children:
-            newvalue, newmove = child.negamax(depth - 1, -beta, -alpha, -color, start_time, time_for_this_move)
-            if newvalue == TIMES_UP:
-                return TIMES_UP, None
-            if -newvalue > value:
-                value = -newvalue
-                best_child = child
-            alpha = max(alpha, value)
-            if alpha >= beta:
-                break
-
-        self.value = value
-        if value <= alpha_original:
-            flag = UPPERBOUND
-        elif value >= beta:
-            flag = LOWERBOUND
-        else:
-            flag = EXACT
-        self.table[self.board.fen()] = (self.value, self.move, flag, depth)
-        return value, best_child.move
