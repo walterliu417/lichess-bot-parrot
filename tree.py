@@ -44,10 +44,13 @@ class Node:
             return self.value / (self.visits + 1)
         
     def evaluate_nn(self):
-        pos = torch.tensor(fast_board_to_boardmap(self.board), device=device, dtype=torch.float).reshape(1, 1, 8, 8)
-        feat = torch.tensor(fast_board_to_feature(self.board), device=device, dtype=torch.float).reshape(1, 12)
+        boardlist = fast_board_to_boardmap(self.board)
+        if not self.board.turn:
+            boardlist = np.rot90(boardlist, 2) * -1
+            boardlist = boardlist.tolist()
+        pos = torch.tensor(boardlist, device=device, dtype=torch.float).reshape(1, 1, 8, 8)
         with torch.no_grad():
-            return self.net.forward(pos, feat)
+            return self.net.forward(pos)
     
     def evaluate_position(self):
         if TABLEBASE and lt5(self.board):
@@ -70,7 +73,6 @@ class Node:
     
     def generate_children(self):
         all_positions = []
-        all_feats = []
 
         evaled = []
         not_evaled = []
@@ -86,14 +88,16 @@ class Node:
                 newnode.value = score
                 evaled.append(newnode)
             else:
-                all_positions.append(fast_board_to_boardmap(newboard))
-                all_feats.append(fast_board_to_feature(newboard))
+                boardlist = fast_board_to_boardmap(newboard)
+                if not newboard.turn:
+                    boardlist = np.rot90(boardlist, 2) * -1
+                    boardlist = boardlist.tolist()
+                all_positions.append(boardlist)
                 not_evaled.append(newnode)
             newnode.flag = EXACT
 
         pos = torch.tensor(all_positions, device=device, dtype=torch.float).reshape(len(not_evaled), 1, 8, 8)
-        feat = torch.tensor(all_feats, device=device, dtype=torch.float).reshape(len(not_evaled), 12)
-        result = self.net.forward(pos, feat)
+        result = self.net.forward(pos)
         for i in range(len(not_evaled)):
             not_evaled[i].value = float(result[i])
             evaled.append(not_evaled[i])
@@ -107,16 +111,12 @@ class Node:
             target_node = self
             while target_node.children != []:
                 target_node.visits += 1
-                if target_node.board.turn:
-                    target_node.children = sorted(target_node.children, key=lambda child: child.value, reverse=True)
-                elif not target_node.board.turn:
-                    target_node.children = sorted(target_node.children, key=lambda child: child.value)
+                target_node.children = sorted(target_node.children, key=lambda child: child.value, reverse=True)
                 target_node = target_node.children[0]
             
             # 2. Expansion and simulation
             target_node.generate_children()
             target_node.visits += 1
-
 
             # 3. Backpropagation
             while True:
@@ -125,10 +125,7 @@ class Node:
                     if target_node.value is None:
                         target_node.value = target_node.evaluate_nn()
                 else:
-                    if target_node.board.turn:
-                        target_node.value = max(target_node.children, key=lambda child: child.value).value
-                    elif (not target_node.board.turn):
-                        target_node.value = min(target_node.children, key=lambda child: child.value).value
+                    target_node.value = max(target_node.children, key=lambda child: child.value).value
                 if target_node.parent is not None:
                     target_node = target_node.parent
                 else:
@@ -137,10 +134,7 @@ class Node:
         # 4. Select move - UBFMS
         max_visits = max(self.children, key=lambda child: child.visits)
         print(max_visits.visits)
-        if self.board.turn:
-          selected_child = max(self.children, key=lambda child: 0.3 * child.value + 0.7 * child.visits / max_visits.visits)
-        elif not self.board.turn:
-          selected_child = min(self.children, key=lambda child: 0.3 * child.value - 0.7 * child.visits / max_visits.visits)
+        selected_child = max(self.children, key=lambda child: 0.3 * child.value + 0.7 * child.visits / max_visits.visits)
         print(selected_child.visits, selected_child.value)
         return selected_child
     

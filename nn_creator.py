@@ -46,17 +46,17 @@ class SimpleModel(nn.Module):
         self.conv_net.add_module("Flattener", nn.Flatten())
 
         self.mlp = nn.Sequential()
-        self.mlp.add_module("Layer 1", nn.Linear(712, 500))
+        self.mlp.add_module("Layer 1", nn.Linear(700, 500))
         self.mlp.add_module("Activation 1", nn.LeakyReLU())
         self.mlp.add_module("Layer 2", nn.Linear(500, 250))
         self.mlp.add_module("Activation 2", nn.LeakyReLU())
         self.mlp.add_module("Layer 3", nn.Linear(250, 1))
         self.mlp.add_module("Activation 3", nn.Sigmoid())
 
-    def forward(self, x, feat):
+    def forward(self, x):
         x = self.conv_net.forward(x)
-        y = torch.column_stack((x, feat))
-        return self.mlp.forward(y)
+        return self.mlp.forward(x)
+    
 class ComplexModel(nn.Module):
   # Attempt at using a deeper CNN.
 

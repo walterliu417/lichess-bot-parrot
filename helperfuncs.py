@@ -22,8 +22,9 @@ except:
     else:
         device = torch.device('cpu')
         print('Running on the CPU')
+TRANSFORM = {0.5: 0, 1.0: 1.0, 0.9167: 0.8333, 0.8333: 0.6667, 0.75: 0.5, 0.6667: 0.3333, 0.5833: 0.1667, 0.0: -1.0, 0.0833: -0.8333, 0.1667: -0.6667, 0.25: -0.5, 0.3333: -0.3333, 0.4167: -0.1667}
 
-chr_to_num = {"k": 0, "q": 1, "r": 2, "b": 3, "n": 4, "p": 5, "P": 7, "N": 8, "B": 9, "R": 10, "Q": 11, "K": 12}
+chr_to_num = {"k": -1, "q": -0.8333, "r": -0.6667, "b": -0.5, "n": -0.3333, "p": -0.1667, "P": 0.1667, "N": 0.3333, "B": 0.5, "R": 0.6667, "Q": 0.8333, "K": 1}
 
 def square_to_int(sq):
     return (ord(sq[0]) - 97) * 8 + int(sq[1]) - 1
@@ -39,40 +40,40 @@ def fast_board_to_boardmap(board):
     boards = [[0.5 for _ in range(8)] for _ in range(8)]
     for square in board.pieces(chess.PAWN, chess.WHITE):
         idx = squareint_to_square(square)
-        boards[idx[0]][idx[1]] = round((chr_to_num["P"]) / 12, 4)
+        boards[idx[0]][idx[1]] = chr_to_num["P"]
     for square in board.pieces(chess.PAWN, chess.BLACK):
         idx = squareint_to_square(square)
-        boards[idx[0]][idx[1]] = round((chr_to_num["p"]) / 12, 4)
+        boards[idx[0]][idx[1]] = chr_to_num["p"]
     for square in board.pieces(chess.KNIGHT, chess.WHITE):
         idx = squareint_to_square(square)
-        boards[idx[0]][idx[1]] = round((chr_to_num["N"]) / 12, 4)
+        boards[idx[0]][idx[1]] = chr_to_num["N"]
     for square in board.pieces(chess.KNIGHT, chess.BLACK):
         idx = squareint_to_square(square)
-        boards[idx[0]][idx[1]] = round((chr_to_num["n"]) / 12, 4)
+        boards[idx[0]][idx[1]] = chr_to_num["n"]
     for square in board.pieces(chess.BISHOP, chess.WHITE):
         idx = squareint_to_square(square)
-        boards[idx[0]][idx[1]] = round((chr_to_num["B"]) / 12, 4)
+        boards[idx[0]][idx[1]] = chr_to_num["B"]
     for square in board.pieces(chess.BISHOP, chess.BLACK):
         idx = squareint_to_square(square)
-        boards[idx[0]][idx[1]] = round((chr_to_num["b"]) / 12, 4)
+        boards[idx[0]][idx[1]] = chr_to_num["b"]
     for square in board.pieces(chess.ROOK, chess.WHITE):
         idx = squareint_to_square(square)
-        boards[idx[0]][idx[1]] = round((chr_to_num["R"]) / 12, 4)
+        boards[idx[0]][idx[1]] = chr_to_num["R"]
     for square in board.pieces(chess.ROOK, chess.BLACK):
         idx = squareint_to_square(square)
-        boards[idx[0]][idx[1]] = round((chr_to_num["r"]) / 12, 4)
+        boards[idx[0]][idx[1]] = chr_to_num["r"]
     for square in board.pieces(chess.QUEEN, chess.WHITE):
         idx = squareint_to_square(square)
-        boards[idx[0]][idx[1]] = round((chr_to_num["Q"]) / 12, 4)
+        boards[idx[0]][idx[1]] = chr_to_num["Q"]
     for square in board.pieces(chess.QUEEN, chess.BLACK):
         idx = squareint_to_square(square)
-        boards[idx[0]][idx[1]] = round((chr_to_num["q"]) / 12, 4)
+        boards[idx[0]][idx[1]] = chr_to_num["q"]
     for square in board.pieces(chess.KING, chess.WHITE):
         idx = squareint_to_square(square)
-        boards[idx[0]][idx[1]] = round((chr_to_num["K"]) / 12, 4)
+        boards[idx[0]][idx[1]] = chr_to_num["K"]
     for square in board.pieces(chess.KING, chess.BLACK):
         idx = squareint_to_square(square)
-        boards[idx[0]][idx[1]] = round((chr_to_num["k"]) / 12, 4)
+        boards[idx[0]][idx[1]] = chr_to_num["k"]
     return [boards]
 
 def fast_board_to_feature(board):
