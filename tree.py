@@ -73,7 +73,7 @@ class Node:
                 return 0.5
         return None
     
-    def generate_children(self):
+    def generate_children(self, again):
         all_positions = []
 
         evaled = []
@@ -106,6 +106,16 @@ class Node:
         
         self.children = evaled
 
+        if again:
+            for child in self.children:
+                child.generate_children(False)
+                if child.children == []:
+                    child.value = 1 - child.evaluate_position()
+                    if child.value is None:
+                        child.value = 1 - child.evaluate_nn()
+                else:
+                    child.value = 1 - min(child.children, key=lambda c: c.value).value
+
     def pns(self, start_time, time_for_this_move):
         while time.time() - start_time < time_for_this_move:
 
@@ -116,7 +126,7 @@ class Node:
                 target_node = min(target_node.children, key=lambda child: child.value)
             
             # 2. Expansion and simulation
-            target_node.generate_children()
+            target_node.generate_children(True)
             target_node.visits += 1
 
             # 3. Backpropagation
