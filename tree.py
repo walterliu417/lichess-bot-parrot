@@ -1,6 +1,7 @@
 import helperfuncs
 from helperfuncs import *
 import numpy as np
+import random
 
 try:
     TABLEBASE = chess.syzygy.open_tablebase("/content/drive/MyDrive/parrot/tablebase_5pc")
@@ -31,6 +32,17 @@ class Node:
         self.children = []
         self.flag = None
         self.table = table
+
+        try:
+            self.capture = self.board.is_capture(self.move)
+        except:
+            self.capture = False
+
+        try:
+            self.check = self.board.is_check(self.move)
+        except:
+            self.check = False
+
 
     def ucb(self, c=1.4):
         try:
@@ -123,7 +135,14 @@ class Node:
             target_node = self
             while target_node.children != []:
                 target_node.visits += 1
-                target_node = min(target_node.children, key=lambda child: child.value)
+                explore = random.random()
+                time_fraction = (time.time() - start_time) / time_for_this_move
+                if explore > time_fraction:
+                    checks = [child for child in self.children if child.check]
+                    captures = [child for child in self.children if child.capture]
+                    target_node = random.choice(checks + captures)
+                else:
+                    target_node = min(target_node.children, key=lambda child: child.value)
             
             # 2. Expansion and simulation
             target_node.generate_children(True)
