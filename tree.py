@@ -65,9 +65,9 @@ class Node:
     def evaluate_position(self):
         if TABLEBASE and lt5(self.board):
             result = TABLEBASE.probe_wdl(self.board)
-            if result == 2:
+            if (result == 2):
                 return 1
-            elif result == -2:
+            elif (result == -2):
                 return 0
             elif result in [-1, 0, 1]:
                 return 0.5
@@ -85,7 +85,7 @@ class Node:
                 return 0.5
         return None
     
-    def generate_children(self, again):
+    def generate_children(self):
         all_positions = []
 
         evaled = []
@@ -118,16 +118,6 @@ class Node:
         
         self.children = evaled
 
-        if again:
-            for child in self.children:
-                child.generate_children(False)
-                if child.children == []:
-                    child.value = 1 - child.evaluate_position()
-                    if child.value is None:
-                        child.value = 1 - child.evaluate_nn()
-                else:
-                    child.value = 1 - min(child.children, key=lambda c: c.value).value
-
     def pns(self, start_time, time_for_this_move):
         while time.time() - start_time < time_for_this_move:
 
@@ -145,15 +135,15 @@ class Node:
                     target_node = min(target_node.children, key=lambda child: child.value)
             
             # 2. Expansion and simulation
-            target_node.generate_children(True)
+            target_node.generate_children()
             target_node.visits += 1
 
             # 3. Backpropagation
             while True:
                 if target_node.children == []:
-                    target_node.value = 1 - target_node.evaluate_position()
+                    target_node.value = target_node.evaluate_position()
                     if target_node.value is None:
-                        target_node.value = 1 - target_node.evaluate_nn()
+                        target_node.value = target_node.evaluate_nn()
                 else:
                     target_node.value = 1 - min(target_node.children, key=lambda child: child.value).value
                 if target_node.parent is not None:
