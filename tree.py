@@ -153,5 +153,5 @@ class Node:
         print(max_visits.visits)
         selected_child = min(self.children, key=lambda child: child.value)
         print(selected_child.visits)
-        print(node.value)
+        print(self.value)
         return selected_child
