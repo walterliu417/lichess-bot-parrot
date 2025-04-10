@@ -17,7 +17,6 @@ UPPERBOUND = 2
 
 class Node:
     pass
-
 class Node:
 
     def __init__(self, board: chess.Board, move: chess.Move | None, net: nn.Module, parent: Node | None, table: dict | None, depth=0):
@@ -34,25 +33,24 @@ class Node:
         self.table = table
 
         try:
-            self.capture = self.board.is_capture(self.move)
+            self.capture = self.parent.board.is_capture(self.move)
         except:
             self.capture = False
 
         try:
-            self.check = self.board.is_check(self.move)
+            self.check = self.parent.board.is_check(self.move)
         except:
             self.check = False
 
 
-    def ucb(self, c=1.4):
-        try:
-            if not self.board.turn:
-                return (self.value / (self.visits + 1)) + c * (np.log(self.parent.visits) / (self.visits + 1))
-            elif self.board.turn:
-                return (self.value / (self.visits + 1)) - c * (np.log(self.parent.visits) / (self.visits + 1))
-        except:
-            return self.value / (self.visits + 1)
-        
+    def ucb(self, time_fraction):
+        bonus = 0
+        if self.capture:
+            bonus = 0.15
+        elif self.check:
+            bonus = 0.075
+        return self.value - (1 - time_fraction) * np.sqrt(np.log(self.parent.visits + 1) / (self.visits + 1)) - (bonus * (1 - time_fraction))
+
     def evaluate_nn(self):
         boardlist = fast_board_to_boardmap(self.board)
         if not self.board.turn:
@@ -61,13 +59,13 @@ class Node:
         pos = torch.tensor(boardlist, device=device, dtype=torch.float).reshape(1, 1, 8, 8)
         with torch.no_grad():
             return self.net.forward(pos)
-    
+
     def evaluate_position(self):
         if TABLEBASE and lt5(self.board):
             result = TABLEBASE.probe_wdl(self.board)
-            if (result == 2):
+            if result == 2:
                 return 1
-            elif (result == -2):
+            elif result == -2:
                 return 0
             elif result in [-1, 0, 1]:
                 return 0.5
@@ -84,7 +82,7 @@ class Node:
             elif outcome == "1/2-1/2":
                 return 0.5
         return None
-    
+
     def generate_children(self):
         all_positions = []
 
@@ -97,17 +95,21 @@ class Node:
             newboard = self.board.copy()
             newboard.push(move)
             newnode = Node(newboard, move, self.net, self, self.table, depth=self.depth + 1)
-            score = newnode.evaluate_position()
-            if score is not None:
-                newnode.value = score
+            if newnode.board.halfmove_clock > 50:
+                newnode.value = 0.5
                 evaled.append(newnode)
             else:
-                boardlist = fast_board_to_boardmap(newboard)
-                if not newboard.turn:
-                    boardlist = np.rot90(boardlist, 2) * -1
-                    boardlist = boardlist.tolist()
-                all_positions.append(boardlist)
-                not_evaled.append(newnode)
+                score = newnode.evaluate_position()
+                if score is not None:
+                    newnode.value = score
+                    evaled.append(newnode)
+                else:
+                    boardlist = fast_board_to_boardmap(newboard)
+                    if not newboard.turn:
+                        boardlist = np.rot90(boardlist, 2) * -1
+                        boardlist = boardlist.tolist()
+                    all_positions.append(boardlist)
+                    not_evaled.append(newnode)
             newnode.flag = EXACT
 
         pos = torch.tensor(all_positions, device=device, dtype=torch.float).reshape(len(not_evaled), 1, 8, 8)
@@ -115,25 +117,20 @@ class Node:
         for i in range(len(not_evaled)):
             not_evaled[i].value = float(result[i])
             evaled.append(not_evaled[i])
-        
+
         self.children = evaled
+
 
     def pns(self, start_time, time_for_this_move):
         while time.time() - start_time < time_for_this_move:
 
-            # 1. Traverse tree
+            # 1. Traverse tree with UCT + quiescence and decreasing exploration with time.
             target_node = self
             while target_node.children != []:
                 target_node.visits += 1
-                explore = random.random()
                 time_fraction = (time.time() - start_time) / time_for_this_move
-                if explore > time_fraction:
-                    checks = [child for child in self.children if child.check]
-                    captures = [child for child in self.children if child.capture]
-                    target_node = random.choice(checks + captures)
-                else:
-                    target_node = min(target_node.children, key=lambda child: child.value)
-            
+                target_node = min(target_node.children, key=lambda child: child.ucb(time_fraction))
+
             # 2. Expansion and simulation
             target_node.generate_children()
             target_node.visits += 1
@@ -155,5 +152,6 @@ class Node:
         max_visits = max(self.children, key=lambda child: child.visits)
         print(max_visits.visits)
         selected_child = min(self.children, key=lambda child: child.value)
-        print(selected_child.visits, selected_child.value)
+        print(selected_child.visits)
+        print(node.value)
         return selected_child
