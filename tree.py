@@ -42,13 +42,23 @@ class Node:
         except:
             self.check = False
 
+        try:
+            if self.move.promotion is not None:
+                self.promotion = True
+            else:
+                self.promotion = False
+        except:
+            self.promotion = False
 
-    def ucb(self, time_fraction):
+
+    def ucb(self, time_fraction, quiescent=0.1):
         bonus = 0
         if self.capture:
-            bonus = 0.15
+            bonus = quiescent
         elif self.check:
-            bonus = 0.075
+            bonus = quiescent / 2
+        elif self.promotion:
+            bonus = quiescent
         return self.value - (1 - time_fraction) * np.sqrt(np.log(self.parent.visits + 1) / (self.visits + 1)) - (bonus * (1 - time_fraction))
 
     def evaluate_nn(self):
@@ -150,8 +160,7 @@ class Node:
 
         # 4. Select move - UBFMS
         max_visits = max(self.children, key=lambda child: child.visits)
-        print(max_visits.visits)
         selected_child = min(self.children, key=lambda child: child.value)
-        print(selected_child.visits)
-        print(self.value)
+        print(f"Visit statistics: Root {self.visits}, Max {max_visits.visits}, Selected {selected_child.visits}")
+        print(f"Evaluation: {self.value}")
         return selected_child

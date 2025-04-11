@@ -88,25 +88,10 @@ class Parrot(ExampleEngine):
                     self.root_node = child
                     break
             if not tt: self.root_node = Node(board, None, self.model, None, ttable)
-        depth = 1
-        color = 1 if board.turn else -1
-        best_move = None
-        best_value = None
+        self.root_node.parent = None # Clear previous search, was causing significant memory issues!
         try:
             while time.time() - search_start < self.time_for_this_move:
-            #    value, move = root_node.negamax(depth, -10000, 10000, color, search_start, self.time_for_this_move)
-            #    if value == TIMES_UP:
-            #        break
-            #    depth += 1
-            #    best_move = move
-            #    best_value = value
-#   
-            #print(f"Depth reached: {depth}, node hits: {helperfuncs.nodes}")
-            #print(f"Evaluation: {best_value}")
                 child = self.root_node.pns(search_start, self.time_for_this_move)
-            print(f"Nodes evaluated: {helperfuncs.nodes}")
-            print(f"Child visits: {child.visits}")
-            print(f"Evaluation: {child.value}")
             self.root_node = child
         except Exception as e:
             import traceback
